@@ -67,7 +67,7 @@ async fn get_source(
         .typed_get::<headers::Range>()
         .and_then(|range| range.satisfiable_ranges(meta.content_length()).next())
     {
-        Some(range) if range.0 != Bound::Included(0) && range.1 != Bound::Unbounded => {
+        Some(range) if range.0 != Bound::Included(0) || range.1 != Bound::Unbounded => {
             status = StatusCode::PARTIAL_CONTENT;
             range
         }
