@@ -23,6 +23,8 @@ import { mutate } from 'swr';
 import { apiUrl } from '../../api';
 import { closeAllModals } from '@mantine/modals';
 
+const ACCEPTED_MIME_TYPES = ['audio/flac', 'audio/mp3', 'audio/mpeg'];
+
 export const AddSongModal = () => {
 	const { user } = useAuth({ admin: true });
 	const [files, setFiles] = useState<FileWithPath[]>([]);
@@ -171,7 +173,7 @@ export function Dropzone({
 			}}
 			onReject={(files) => console.log('rejected files', files)}
 			maxSize={128 * 1024 ** 2}
-			accept={['audio/*']}
+			accept={ACCEPTED_MIME_TYPES}
 			{...props}
 		>
 			<Group
