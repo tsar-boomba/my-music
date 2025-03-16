@@ -19,6 +19,9 @@ import {
 import { useAuth } from '../../utils/useAuth';
 import { Dispatch, SetStateAction, useRef, useState } from 'react';
 import { FinalMetadata, handleUpload, ParsedMetadata } from './uploadMusic';
+import { mutate } from 'swr';
+import { apiUrl } from '../../api';
+import { closeAllModals } from '@mantine/modals';
 
 export const AddSongModal = () => {
 	const { user } = useAuth({ admin: true });
@@ -75,9 +78,9 @@ export const AddSongModal = () => {
 							)
 								.then(() => {
 									console.log('upload done');
-									setUploading(-1);
+									mutate(apiUrl('/songs'));
+									closeAllModals();
 									nextStep();
-									setError('');
 								})
 								.catch((err) => {
 									console.error(err);
