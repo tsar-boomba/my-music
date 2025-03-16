@@ -67,11 +67,11 @@ async fn get_source(
         .typed_get::<headers::Range>()
         .and_then(|range| range.satisfiable_ranges(meta.content_length()).next())
     {
-        Some(range) if range.0 != Bound::Included(0) || range.1 != Bound::Unbounded => {
+        Some(range) => {
             status = StatusCode::PARTIAL_CONTENT;
             range
         }
-        Some(_) | None => (Bound::Included(0), Bound::Unbounded),
+        None => (Bound::Included(0), Bound::Unbounded),
     };
 
     let reader = match operator.reader(&source.path).await {
@@ -106,7 +106,7 @@ fn format_content_range_header(bounds: impl RangeBounds<u64>, size: u64) -> Stri
         (Bound::Included(start), Bound::Excluded(end)) => {
             format!("bytes {start}-{}/{size}", *end - 1)
         }
-        (Bound::Included(start), Bound::Unbounded) => format!("bytes {start}-/{size}"),
+        (Bound::Included(start), Bound::Unbounded) => format!("bytes {start}-{}/{size}", size - 1),
         _ => unreachable!("invalid range for content-range header"),
     }
 }

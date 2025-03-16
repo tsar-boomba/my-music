@@ -19,7 +19,7 @@ import {
 	TbRepeatOff,
 	TbRepeatOnce,
 } from 'react-icons/tb';
-import { useInterval } from '@mantine/hooks';
+import { useInterval, useShallowEffect } from '@mantine/hooks';
 
 const LOADED_INTERVAL_MS = 250;
 
@@ -33,7 +33,7 @@ export const Playback = ({ song }: { song: Song }) => {
 		`/songs/${song.id}/sources`,
 		apiFetcher,
 	);
-	const audioRef = useRef<HTMLAudioElement>(null);
+	const audioRef = useRef<HTMLAudioElement>(new Audio());
 	const [duration, setDuration] = useState<number | null>(null);
 	const [played, setPlayed] = useState<{ percent: number; seconds: number }>({
 		percent: 0,
@@ -58,7 +58,7 @@ export const Playback = ({ song }: { song: Song }) => {
 			return;
 		}
 
-		const amountPlayed = audio.played.end(0) - audio.played.start(0);
+		const amountPlayed = audio.currentTime;
 		const percentPlayed = (amountPlayed / duration) * 100;
 		const amountBuffered = audio.buffered.end(0) - audio.buffered.start(0);
 		const percentBuffered = (amountBuffered / duration) * 100;
@@ -112,10 +112,14 @@ export const Playback = ({ song }: { song: Song }) => {
 			stopInterval();
 			setPlayState('paused');
 		};
+		const onEnd = () => {
+			
+		};
 
 		audio.addEventListener('loadeddata', onLoaded);
 		audio.addEventListener('play', onPlay);
 		audio.addEventListener('pause', onPause);
+		audio.addEventListener('ended', onEnd);
 
 		if (playState === 'playing') {
 			audio.play();
@@ -129,8 +133,18 @@ export const Playback = ({ song }: { song: Song }) => {
 			audio.removeEventListener('loadeddata', onLoaded);
 			audio.removeEventListener('play', onPlay);
 			audio.removeEventListener('pause', onPause);
+			audio.removeEventListener('ended', onEnd);
 		};
 	}, []);
+
+	useShallowEffect(() => {
+		if (!sources || !sources.length) return;
+
+		audioRef.current.srcObject
+		for (const source of sources) {
+			audioRef.current.src = `${location.protocol}//${HOST}/api/sources/${source.id}/data`
+		}
+	}, [sources]);
 
 	if (error) {
 		console.error(error);
@@ -142,8 +156,8 @@ export const Playback = ({ song }: { song: Song }) => {
 
 	return (
 		<Stack gap='xs' align='stretch'>
-			<Group align='center' justify='center'>
-				<Text c='dimmed' size='sm'>
+			<Group align='center' justify='center' gap='xs'>
+				<Text w={48} ta='right' c='dimmed' size='sm'>
 					{formatSeconds(played.seconds)}
 				</Text>
 				<div style={{ flexGrow: 1 }}>
@@ -155,7 +169,7 @@ export const Playback = ({ song }: { song: Song }) => {
 						/>
 					</Progress.Root>
 				</div>
-				<Text c='dimmed' size='sm'>
+				<Text w={48} ta='left' c='dimmed' size='sm'>
 					{duration ? formatSeconds(duration) : '--:--'}
 				</Text>
 			</Group>
@@ -182,15 +196,6 @@ export const Playback = ({ song }: { song: Song }) => {
 					)}
 				</ActionIcon>
 			</Group>
-			<audio preload='auto' ref={audioRef}>
-				{sources?.map((source) => (
-					<source
-						key={source.id}
-						src={`${location.protocol}//${HOST}/api/sources/${source.id}/data`}
-						type={source.mimeType}
-					/>
-				))}
-			</audio>
 		</Stack>
 	);
 };

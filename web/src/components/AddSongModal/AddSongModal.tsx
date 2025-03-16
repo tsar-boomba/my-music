@@ -19,8 +19,8 @@ import {
 import { useAuth } from '../../utils/useAuth';
 import { Dispatch, SetStateAction, useRef, useState } from 'react';
 import { FinalMetadata, handleUpload, ParsedMetadata } from './uploadMusic';
-import { mutate } from 'swr';
-import { apiUrl } from '../../api';
+import { preload } from 'swr';
+import { apiFetcher } from '../../api';
 import { closeAllModals } from '@mantine/modals';
 
 const ACCEPTED_MIME_TYPES = ['audio/flac', 'audio/mp3', 'audio/mpeg'];
@@ -80,7 +80,7 @@ export const AddSongModal = () => {
 							)
 								.then(() => {
 									console.log('upload done');
-									mutate(apiUrl('/songs'));
+									preload('/songs', apiFetcher);
 									closeAllModals();
 									nextStep();
 								})
