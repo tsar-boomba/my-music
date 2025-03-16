@@ -32,10 +32,7 @@ pub struct State {
 }
 
 pub fn api_router(config: Arc<Config>, sqlite: Pool<Sqlite>) -> color_eyre::Result<Router> {
-    let state = State {
-        config,
-        sqlite,
-    };
+    let state = State { config, sqlite };
     let router = Router::new()
         .route("/login", post(auth::login))
         .route("/check-auth", get(auth::check_auth))
@@ -70,11 +67,11 @@ async fn get_source(
         .typed_get::<headers::Range>()
         .and_then(|range| range.satisfiable_ranges(meta.content_length()).next())
     {
-        Some(range) => {
+        Some(range) if range.0 != Bound::Included(0) && range.1 != Bound::Unbounded => {
             status = StatusCode::PARTIAL_CONTENT;
             range
         }
-        None => (Bound::Included(0), Bound::Unbounded),
+        Some(_) | None => (Bound::Included(0), Bound::Unbounded),
     };
 
     let reader = match operator.reader(&source.path).await {
@@ -92,7 +89,10 @@ async fn get_source(
         .header(ACCEPT_RANGES, "bytes");
 
     if status == StatusCode::PARTIAL_CONTENT {
-        builder = builder.header(CONTENT_RANGE, format_content_range_header(range, meta.content_length()))
+        builder = builder.header(
+            CONTENT_RANGE,
+            format_content_range_header(range, meta.content_length()),
+        )
     }
 
     let res = builder.body(body).unwrap();

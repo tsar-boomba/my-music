@@ -47,7 +47,7 @@ pub async fn handler(
         }))
 }
 
-const ALLOWED_MIME_TYPES: [&str; 2] = ["audio/flac", "audio/mp3"];
+const ALLOWED_MIME_TYPES: [&str; 3] = ["audio/flac", "audio/mp3", "audio/mpeg"];
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
