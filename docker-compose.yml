@@ -1,0 +1,18 @@
+services:
+  my-music:
+    platform: linux/arm64
+    container_name: my-music
+    restart: unless-stopped
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - ./test-data:/my-music-data
+      - ./my-music-config.prod.json:/my-music-config.json
+    ports:
+      - 80:80
+    expose:
+      - 80
+    environment:
+      - PASSWORD=password
+      - DOMAIN=http://localhost

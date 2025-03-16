@@ -1,0 +1,11 @@
+web/node_modules/
+web/dist/
+web/.gitignore
+web/.prettierrc
+
+target/
+my-music-data/
+.vscode
+.gitignore
+.env
+push

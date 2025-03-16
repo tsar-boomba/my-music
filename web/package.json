@@ -1,0 +1,43 @@
+{
+	"name": "vite-min-template",
+	"private": true,
+	"version": "0.0.0",
+	"type": "module",
+	"scripts": {
+		"dev": "vite dev",
+		"build": "tsc && vite build",
+		"preview": "vite preview",
+		"format": "prettier . --write"
+	},
+	"dependencies": {
+		"@mantine/core": "7.17.2",
+		"@mantine/dropzone": "7.17.2",
+		"@mantine/hooks": "7.17.2",
+		"@mantine/modals": "7.17.2",
+		"@mantine/vanilla-extract": "7.17.2",
+		"@vanilla-extract/css": "^1.16.1",
+		"masonic": "^4.0.1",
+		"react": "^19.0.0",
+		"react-dom": "^19.0.0",
+		"react-hook-form": "^7.54.2",
+		"react-icons": "^5.5.0",
+		"react-router": "^7.3.0",
+		"swr": "^2.3.3",
+		"websocket-as-promised": "^3.0.0"
+	},
+	"devDependencies": {
+		"@types/react": "^19.0.10",
+		"@types/react-dom": "^19.0.4",
+		"@vanilla-extract/vite-plugin": "^5.0.1",
+		"@vitejs/plugin-basic-ssl": "^1.2.0",
+		"@vitejs/plugin-react": "^4.3.4",
+		"postcss": "^8.4.49",
+		"postcss-preset-mantine": "1.17.0",
+		"postcss-simple-vars": "^7.0.1",
+		"prettier": "^3.5.2",
+		"typescript": "^5.7.2",
+		"vite": "^6.0.1",
+		"vite-plugin-compression": "^0.5.1"
+	},
+	"packageManager": "pnpm@9.14.4"
+}
