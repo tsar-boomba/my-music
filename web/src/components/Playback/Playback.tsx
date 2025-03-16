@@ -134,6 +134,8 @@ export const Playback = ({ song }: { song: Song }) => {
 			audio.removeEventListener('play', onPlay);
 			audio.removeEventListener('pause', onPause);
 			audio.removeEventListener('ended', onEnd);
+			audio.pause();
+			audio.src = '';
 		};
 	}, []);
 
