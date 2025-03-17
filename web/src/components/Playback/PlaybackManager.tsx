@@ -1,4 +1,4 @@
-import { createContext, ReactNode, useContext, useState } from 'react';
+import { createContext, ReactNode, RefObject, useContext, useState } from 'react';
 import { Song } from '../../types/Song';
 import { Playback } from './Playback';
 import useSWR from 'swr';
@@ -24,12 +24,13 @@ export const PlaybackManagerProvider = ({
 	ref,
 }: {
 	children: ReactNode;
-} & { ref: PlayingManagerContext }) => {
+	ref: RefObject<PlayingManagerContext>;
+}) => {
 	return (
 		<playbackContext.Provider
 			value={{
-				playing: () => ref.playing,
-				setPlaying: ref.setPlaying,
+				playing: () => ref.current.playing,
+				setPlaying: (song: Song | null) => ref.current.setPlaying(song),
 			}}
 		>
 			{children}
@@ -37,15 +38,14 @@ export const PlaybackManagerProvider = ({
 	);
 };
 
-export const PlaybackManager = ({ ref }: { ref: PlayingManagerContext }) => {
+export const PlaybackManager = ({ ref }: { ref: RefObject<PlayingManagerContext> }) => {
 	const { data: songs } = useSWR<Song[]>('/songs', apiFetcher);
 	const [song, setSong] = useState<Song | null>(null);
-	ref.setPlaying = setSong;
-	ref.playing = song;
-	console.log(song);
+	ref.current.setPlaying = setSong;
+	ref.current.playing = song;
 
 	if (!songs || !songs.length || !song) {
-		document.title = `Ibomb's Music`
+		document.title = `Ibomb's Music`;
 		return null;
 	}
 	document.title = `${song.title} | Ibomb's Music`;

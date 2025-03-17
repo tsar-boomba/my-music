@@ -12,10 +12,6 @@ import { TbHome2, TbPlus, TbSettings } from 'react-icons/tb';
 import { useLocation, useNavigate } from 'react-router';
 import * as classes from './MobileLayout.css';
 import { CgMoon, CgSun } from 'react-icons/cg';
-import {
-	PlaybackManagerProvider,
-	PlayingManagerContext,
-} from '../Playback/PlaybackManager';
 import { useAuth } from '../../utils/useAuth';
 import { openModal } from '@mantine/modals';
 import { AddSongModal } from '../AddSongModal';
@@ -40,12 +36,10 @@ const TABS: {
 
 export const MobileLayout = ({
 	children,
-	playbackRef,
 	playbackManager,
 }: {
 	children?: ReactNode;
 	playbackManager: ReactNode;
-	playbackRef: PlayingManagerContext;
 }) => {
 	const { user } = useAuth({ allowAnon: true });
 	const { colorScheme, toggleColorScheme } = useMantineColorScheme({
@@ -70,9 +64,7 @@ export const MobileLayout = ({
 
 	return (
 		<Box pb={245} style={{ overflow: 'none' }}>
-			<PlaybackManagerProvider ref={playbackRef}>
-				{children}
-			</PlaybackManagerProvider>
+			{children}
 
 			<Affix bottom={0} left={0} right={0} className={classes.bottom}>
 				<Stack>

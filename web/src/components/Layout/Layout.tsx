@@ -4,6 +4,7 @@ import { DesktopLayout } from './DesktopLayout';
 import { MobileLayout } from './MobileLayout';
 import {
 	PlaybackManager,
+	PlaybackManagerProvider,
 	PlayingManagerContext,
 } from '../Playback/PlaybackManager';
 
@@ -13,25 +14,27 @@ export const Layout = ({ children }: { children?: ReactNode }) => {
 	const { width } = useViewportSize();
 	const playbackRef = useRef<PlayingManagerContext>({
 		playing: null,
-		setPlaying: () => {},
+		setPlaying: () => console.log('default setplaying unreachable'),
 	});
-	const playbackManager = useMemo(
-		() => <PlaybackManager ref={playbackRef.current} />,
-		[],
-	);
+	const playbackManager = useMemo(() => {
+		return <PlaybackManager ref={playbackRef} />;
+	}, []);
 
 	if (width <= MOBILE_WIDTH) {
 		return (
-			<MobileLayout playbackRef={playbackRef.current} playbackManager={playbackManager}>{children}</MobileLayout>
+			<PlaybackManagerProvider ref={playbackRef}>
+				<MobileLayout playbackManager={playbackManager}>
+					{children}
+				</MobileLayout>
+			</PlaybackManagerProvider>
 		);
 	} else {
 		return (
-			<DesktopLayout
-				playbackRef={playbackRef.current}
-				playbackManager={playbackManager}
-			>
-				{children}
-			</DesktopLayout>
+			<PlaybackManagerProvider ref={playbackRef}>
+				<DesktopLayout playbackManager={playbackManager}>
+					{children}
+				</DesktopLayout>
+			</PlaybackManagerProvider>
 		);
 	}
 };

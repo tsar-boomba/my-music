@@ -1,10 +1,6 @@
 import { ReactNode, useCallback } from 'react';
 import Header from './Header';
 import { ActionIcon, Affix, Box, Group, Stack } from '@mantine/core';
-import {
-	PlaybackManagerProvider,
-	PlayingManagerContext,
-} from '../Playback/PlaybackManager';
 import { useAuth } from '../../utils/useAuth';
 import { TbPlus } from 'react-icons/tb';
 import { openModal } from '@mantine/modals';
@@ -12,12 +8,10 @@ import { AddSongModal } from '../AddSongModal';
 
 export const DesktopLayout = ({
 	children,
-	playbackRef,
-	playbackManager
+	playbackManager,
 }: {
 	children?: ReactNode;
 	playbackManager: ReactNode;
-	playbackRef: PlayingManagerContext;
 }) => {
 	const { user } = useAuth({ allowAnon: true });
 
@@ -44,9 +38,7 @@ export const DesktopLayout = ({
 					},
 				]}
 			/>
-			<PlaybackManagerProvider ref={playbackRef}>
-				{children}
-			</PlaybackManagerProvider>
+			{children}
 			<Affix bottom={0} left={0} right={0} pb='md'>
 				<Stack>
 					<Group justify='flex-end' px='md'>

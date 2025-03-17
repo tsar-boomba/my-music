@@ -15,6 +15,8 @@ import {
 import {
 	TbArrowsShuffle,
 	TbArrowsShuffle2,
+	TbDeviceSpeaker,
+	TbDeviceSpeakerOff,
 	TbPlayerPause,
 	TbPlayerPlay,
 	TbPlayerSkipBackFilled,
@@ -28,6 +30,8 @@ export type PlayerState = {
 	loopState: 'loop' | 'loop-song';
 	playState: 'none' | 'playing' | 'paused';
 	shuffle: 'none' | 'shuffle';
+	volume: number;
+	muted: boolean;
 };
 
 const LOADED_INTERVAL_MS = 250;
@@ -36,6 +40,9 @@ const formatSeconds = (seconds: number): string => {
 	const minutes = Math.floor(seconds / 60);
 	return `${minutes.toFixed(0)}:${(seconds % 60).toFixed(0).padStart(2, '0')}`;
 };
+
+const clamp = (n: number, min: number, max: number): number =>
+	Math.min(Math.max(n, min), max);
 
 export const Playback = ({
 	song,
@@ -63,13 +70,20 @@ export const Playback = ({
 	const [loopState, setLoopState] =
 		useState<PlayerState['loopState']>('loop-song');
 	const [shuffle, setShuffle] = useState<PlayerState['shuffle']>('none');
+	const [volume, setVolume] = useState<PlayerState['volume']>(1);
+	const [muted, setMuted] = useState<PlayerState['muted']>(false);
 	const theme = useMantineTheme();
 
-	const playerState = (): PlayerState => ({ loopState, playState, shuffle });
+	const playerState = (): PlayerState => ({
+		loopState,
+		playState,
+		shuffle,
+		volume,
+		muted,
+	});
 
 	const { start: startInterval, stop: stopInterval } = useInterval(() => {
 		const audio = audioRef.current;
-		console.log(audio);
 
 		if (!duration || playState === 'none') {
 			setPlayed({ percent: 0, seconds: 0 });
@@ -127,7 +141,6 @@ export const Playback = ({
 	useShallowEffect(() => {
 		if (!sources || !sources.length) return;
 
-		console.log('sources update:', sources);
 		audioRef.current = new Audio();
 		const audio = audioRef.current;
 		for (const source of sources) {
@@ -150,11 +163,16 @@ export const Playback = ({
 				nextSong(playerState());
 			}
 		};
+		const onVolumeChange = () => {
+			setVolume(audio.volume);
+			setMuted(audio.muted);
+		};
 
 		audio.addEventListener('loadeddata', onLoaded);
 		audio.addEventListener('play', onPlay);
 		audio.addEventListener('pause', onPause);
 		audio.addEventListener('ended', onEnd);
+		audio.addEventListener('volumechange', onVolumeChange);
 
 		audio.loop = loopState === 'loop-song';
 
@@ -166,6 +184,7 @@ export const Playback = ({
 			audio.removeEventListener('play', onPlay);
 			audio.removeEventListener('pause', onPause);
 			audio.removeEventListener('ended', onEnd);
+			audio.removeEventListener('volumechange', onVolumeChange);
 			audio.pause();
 			audio.src = '';
 		};
@@ -190,7 +209,18 @@ export const Playback = ({
 						{formatSeconds(played.seconds)}
 					</Text>
 					<div style={{ flexGrow: 1 }}>
-						<Progress.Root transitionDuration={LOADED_INTERVAL_MS}>
+						<Progress.Root
+							style={{ cursor: duration ? 'pointer' : undefined }}
+							onClick={(e) => {
+								if (!duration) return;
+								const { x: barX, width: barWidth } =
+									e.currentTarget.getBoundingClientRect();
+								const posInBar = e.clientX - barX;
+								const percentOfBar = clamp(posInBar / barWidth, 0, 1);
+								audioRef.current.currentTime = duration * percentOfBar;
+							}}
+							transitionDuration={LOADED_INTERVAL_MS}
+						>
 							<Progress.Section value={played.percent} />
 							<Progress.Section
 								value={buffered}
@@ -201,6 +231,35 @@ export const Playback = ({
 					<Text w={48} ta='left' c='dimmed' size='sm'>
 						{duration ? formatSeconds(duration) : '--:--'}
 					</Text>
+				</Group>
+				<Group justify='flex-end' px='md' gap='xs'>
+					<ActionIcon
+						variant='subtle'
+						onClick={() => (audioRef.current.muted = !audioRef.current.muted)}
+					>
+						{!muted ? (
+							<TbDeviceSpeaker size={20} />
+						) : (
+							<TbDeviceSpeakerOff size={20} />
+						)}
+					</ActionIcon>
+					<Progress
+						value={muted ? 0 : volume * 100}
+						w='60%'
+						maw={200}
+						h={10}
+						radius='xl'
+						c={muted ? 'gray' : undefined}
+						style={{ cursor: !muted ? 'pointer' : undefined }}
+						onClick={(e) => {
+							if (muted) return;
+							const { x: barX, width: barWidth } =
+								e.currentTarget.getBoundingClientRect();
+							const posInBar = e.clientX - barX;
+							const percentOfBar = clamp(posInBar / barWidth, 0, 1);
+							audioRef.current.volume = percentOfBar >= 0.97 ? 1 : percentOfBar;
+						}}
+					/>
 				</Group>
 				<Group justify='center'>
 					<ActionIcon size='xl' radius='xl' onClick={changeShuffle}>
