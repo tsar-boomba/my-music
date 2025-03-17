@@ -89,6 +89,18 @@ export const handleUpload = async (
 };
 
 const waitForResponse = (ws: WebsocketAsPromised): Promise<any> =>
-	new Promise((resolve) =>
-		ws.onMessage.addOnceListener((message) => resolve(message)),
-	);
+	Promise.any([
+		new Promise((resolve) =>
+			ws.onClose.addOnceListener(() => resolve({})),
+		),
+		new Promise((resolve) =>
+			ws.onMessage.addOnceListener((message) => resolve(message)),
+		),
+	]).then((messageOrCloseEvent) => {
+		if (typeof messageOrCloseEvent === 'object') {
+			// Closed D:
+			return JSON.stringify({ error: 'WS closed unexpectedly' });
+		}
+
+		return messageOrCloseEvent;
+	});

@@ -35,6 +35,9 @@ pub async fn handler(
     }
 
     Ok(ws
+        .max_write_buffer_size(128 * 1024)
+        .write_buffer_size(16 * 1024)
+        .max_message_size(128 * 1024 * 1024)
         .max_frame_size(128 * 1024 * 1024)
         .on_upgrade(move |ws| async move {
             let state = state;
