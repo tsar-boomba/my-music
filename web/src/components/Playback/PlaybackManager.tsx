@@ -45,8 +45,10 @@ export const PlaybackManager = ({ ref }: { ref: PlayingManagerContext }) => {
 	console.log(song);
 
 	if (!songs || !songs.length || !song) {
+		document.title = `Ibomb's Music`
 		return null;
 	}
+	document.title = `${song.title} | Ibomb's Music`;
 
 	const songIdx = songs.findIndex((s) => s.id === song.id);
 	let nextSong = songs[songIdx + 1 >= songs.length ? 0 : songIdx + 1];
