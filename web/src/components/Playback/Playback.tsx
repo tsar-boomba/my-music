@@ -22,13 +22,15 @@ import {
 	TbRepeat,
 	TbRepeatOnce,
 } from 'react-icons/tb';
-import { useShallowEffect } from '@mantine/hooks';
+import { useInterval, useShallowEffect } from '@mantine/hooks';
 
 export type PlayerState = {
 	loopState: 'loop' | 'loop-song';
 	playState: 'none' | 'playing' | 'paused';
 	shuffle: 'none' | 'shuffle';
 };
+
+const LOADED_INTERVAL_MS = 250;
 
 const formatSeconds = (seconds: number): string => {
 	const minutes = Math.floor(seconds / 60);
@@ -62,6 +64,24 @@ export const Playback = ({
 	const theme = useMantineTheme();
 
 	const playerState = (): PlayerState => ({ loopState, playState, shuffle });
+
+	const { start: startInterval, stop: stopInterval } = useInterval(() => {
+		const audio = audioRef.current;
+
+		if (!duration || playState === 'none') {
+			setPlayed({ percent: 0, seconds: 0 });
+			setBuffered(0);
+			return;
+		}
+
+		const amountPlayed = audio.currentTime;
+		const percentPlayed = (amountPlayed / duration) * 100;
+		const amountBuffered = audio.buffered.end(0) - audio.buffered.start(0);
+		const percentBuffered = (amountBuffered / duration) * 100;
+
+		setPlayed({ percent: percentPlayed, seconds: amountPlayed });
+		setBuffered(percentBuffered - percentPlayed);
+	}, LOADED_INTERVAL_MS);
 
 	const togglePlayState = () => {
 		switch (playState) {
@@ -101,33 +121,19 @@ export const Playback = ({
 	};
 
 	useEffect(() => {
+		if (!audioRef.current) return;
+
 		const audio = audioRef.current;
 		const onLoaded = () => {
 			setDuration(audio.duration);
 		};
-
 		const onPlay = () => {
+			startInterval();
 			setPlayState('playing');
 		};
-
 		const onPause = () => {
+			stopInterval();
 			setPlayState('paused');
-		};
-
-		const onTimeUpdate = () => {
-			if (!duration || playState === 'none') {
-				setPlayed({ percent: 0, seconds: 0 });
-				setBuffered(0);
-				return;
-			}
-
-			const amountPlayed = audio.currentTime;
-			const percentPlayed = (amountPlayed / duration) * 100;
-			const amountBuffered = audio.buffered.end(0) - audio.buffered.start(0);
-			const percentBuffered = (amountBuffered / duration) * 100;
-
-			setPlayed({ percent: percentPlayed, seconds: amountPlayed });
-			setBuffered(percentBuffered - percentPlayed);
 		};
 		const onEnd = () => {
 			if (loopState !== 'loop-song') {
@@ -140,7 +146,6 @@ export const Playback = ({
 		audio.addEventListener('play', onPlay);
 		audio.addEventListener('pause', onPause);
 		audio.addEventListener('ended', onEnd);
-		audio.addEventListener('timeupdate', onTimeUpdate);
 
 		if (playState === 'playing') {
 			audio.play();
@@ -155,7 +160,6 @@ export const Playback = ({
 			audio.removeEventListener('play', onPlay);
 			audio.removeEventListener('pause', onPause);
 			audio.removeEventListener('ended', onEnd);
-			audio.removeEventListener('timeupdate', onTimeUpdate);
 			audio.pause();
 			audio.src = '';
 		};
@@ -192,7 +196,7 @@ export const Playback = ({
 						{formatSeconds(played.seconds)}
 					</Text>
 					<div style={{ flexGrow: 1 }}>
-						<Progress.Root>
+						<Progress.Root transitionDuration={LOADED_INTERVAL_MS}>
 							<Progress.Section value={played.percent} />
 							<Progress.Section
 								value={buffered}
