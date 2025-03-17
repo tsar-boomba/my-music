@@ -164,6 +164,7 @@ async fn handle_ws(mut ws: WebSocket, state: State, _user: User) -> Result<(), A
                 .ok_or(ApiError::InvalidWSMessage)??
                 .into_text()?;
             let final_meta: FinalMetadata = serde_json::from_str(&final_meta_str)?;
+            tracing::debug!("Got final meta: {final_meta:#?}");
 
             let res = match add_song(
                 state.clone(),

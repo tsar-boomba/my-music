@@ -2,15 +2,23 @@ import {
 	ActionIcon,
 	Affix,
 	Box,
+	Group,
 	Stack,
 	Tabs,
 	useMantineColorScheme,
 } from '@mantine/core';
-import { ReactNode } from 'react';
-import { TbHome2, TbSettings } from 'react-icons/tb';
+import { ReactNode, useCallback } from 'react';
+import { TbHome2, TbPlus, TbSettings } from 'react-icons/tb';
 import { useLocation, useNavigate } from 'react-router';
 import * as classes from './MobileLayout.css';
 import { CgMoon, CgSun } from 'react-icons/cg';
+import {
+	PlaybackManagerProvider,
+	PlayingManagerContext,
+} from '../Playback/PlaybackManager';
+import { useAuth } from '../../utils/useAuth';
+import { openModal } from '@mantine/modals';
+import { AddSongModal } from '../AddSongModal';
 
 export const TABS_HEIGHT = 50;
 
@@ -30,7 +38,16 @@ const TABS: {
 	},
 ];
 
-export const MobileLayout = ({ children }: { children?: ReactNode }) => {
+export const MobileLayout = ({
+	children,
+	playbackRef,
+	playbackManager,
+}: {
+	children?: ReactNode;
+	playbackManager: ReactNode;
+	playbackRef: PlayingManagerContext;
+}) => {
+	const { user } = useAuth({ allowAnon: true });
 	const { colorScheme, toggleColorScheme } = useMantineColorScheme({
 		keepTransitions: true,
 	});
@@ -38,38 +55,55 @@ export const MobileLayout = ({ children }: { children?: ReactNode }) => {
 	const nav = useNavigate();
 	let tab: Page = 'home';
 
+	const openAddSongs = useCallback(
+		() =>
+			openModal({
+				title: 'Add Songs',
+				children: <AddSongModal />,
+			}),
+		[],
+	);
+
 	if (location.pathname.includes('settings')) {
 		tab = 'settings';
 	}
 
 	return (
-		<Box pb={TABS_HEIGHT + 12} style={{ overflow: 'none' }}>
-			{children}
+		<Box pb={TABS_HEIGHT + 65 + 12} style={{ overflow: 'none' }}>
+			<PlaybackManagerProvider ref={playbackRef}>
+				{children}
+			</PlaybackManagerProvider>
 
-			<Affix left={16} bottom={TABS_HEIGHT + 12}>
-				<ActionIcon size='lg' onClick={() => toggleColorScheme()}>
-					{colorScheme === 'dark' ? <CgSun size={18} /> : <CgMoon size={18} />}
-				</ActionIcon>
-			</Affix>
-			<Affix
-				bottom={0}
-				left={0}
-				right={0}
-				h={TABS_HEIGHT}
-				className={classes.bottom}
-			>
-				<Tabs inverted value={tab}>
-					<Tabs.List grow>
-						{TABS.map(({ name, path, icon, page }) => (
-							<Tabs.Tab value={page} onClick={() => nav(path)} key={path}>
-								<Stack gap={0} align='center'>
-									{icon}
-									<div>{name}</div>
-								</Stack>
-							</Tabs.Tab>
-						))}
-					</Tabs.List>
-				</Tabs>
+			<Affix bottom={0} left={0} right={0} className={classes.bottom}>
+				<Stack>
+					<Group justify='space-between' px='md'>
+						<ActionIcon size='lg' onClick={() => toggleColorScheme()}>
+							{colorScheme === 'dark' ? (
+								<CgSun size={18} />
+							) : (
+								<CgMoon size={18} />
+							)}
+						</ActionIcon>
+						{user && user.admin && (
+							<ActionIcon size='xl' radius='xl' onClick={openAddSongs}>
+								<TbPlus />
+							</ActionIcon>
+						)}
+					</Group>
+					{playbackManager}
+					<Tabs inverted value={tab}>
+						<Tabs.List grow>
+							{TABS.map(({ name, path, icon, page }) => (
+								<Tabs.Tab value={page} onClick={() => nav(path)} key={path}>
+									<Stack gap={0} align='center'>
+										{icon}
+										<div>{name}</div>
+									</Stack>
+								</Tabs.Tab>
+							))}
+						</Tabs.List>
+					</Tabs>
+				</Stack>
 			</Affix>
 		</Box>
 	);

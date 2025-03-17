@@ -1,10 +1,8 @@
 import useSWR from 'swr';
 import { apiFetcher } from '../api';
 import {
-	ActionIcon,
-	Affix,
-	Box,
 	Center,
+	Group,
 	Loader,
 	Paper,
 	Stack,
@@ -12,15 +10,11 @@ import {
 } from '@mantine/core';
 import { useViewportSize } from '@mantine/hooks';
 import { MOBILE_WIDTH } from '../components/Layout';
-import { useCallback, useRef } from 'react';
-import { TABS_HEIGHT } from '../components/Layout/MobileLayout';
+import { useRef } from 'react';
 import { useTags } from '../utils/tags';
 import { useAuth } from '../utils/useAuth';
-import { TbPlus } from 'react-icons/tb';
 import { Song } from '../types/Song';
-import { openModal } from '@mantine/modals';
-import { AddSongModal } from '../components/AddSongModal/AddSongModal';
-import { Playback } from '../components/Playback';
+import { usePlayback } from '../components/Playback';
 
 export const Home = () => {
 	const { data: songs, error } = useSWR<Song[]>('/songs', apiFetcher);
@@ -28,15 +22,7 @@ export const Home = () => {
 	const { tags, error: tagsError } = useTags();
 	const { width } = useViewportSize();
 	const ref = useRef<HTMLDivElement>(null);
-
-	const openAddSongs = useCallback(
-		() =>
-			openModal({
-				title: 'Add Songs',
-				children: <AddSongModal />,
-			}),
-		[],
-	);
+	const { setPlaying } = usePlayback();
 
 	if (error) {
 		return error.toString();
@@ -55,15 +41,7 @@ export const Home = () => {
 	}
 
 	const renderedItems = songs.map((song) => (
-		<UnstyledButton
-			key={song.id}
-			onClick={() =>
-				openModal({
-					title: `Playing ${song.title}`,
-					children: <Playback song={song} />,
-				})
-			}
-		>
+		<UnstyledButton key={song.id} onClick={() => setPlaying(song)}>
 			<Paper withBorder shadow='sm' p='sm'>
 				{song.title}
 			</Paper>
@@ -72,33 +50,15 @@ export const Home = () => {
 
 	if (width <= MOBILE_WIDTH) {
 		return (
-			<>
-				<Stack mx={12} mt={12} gap={12} style={{ overflow: 'auto' }} ref={ref}>
-					{renderedItems}
-				</Stack>
-				{user.admin && (
-					<Affix bottom={TABS_HEIGHT + 12} right={12}>
-						<ActionIcon size='xl' radius='xl' onClick={openAddSongs}>
-							<TbPlus />
-						</ActionIcon>
-					</Affix>
-				)}
-			</>
+			<Stack mx={12} mt={12} gap={12} style={{ overflow: 'auto' }} ref={ref}>
+				{renderedItems}
+			</Stack>
 		);
 	}
 
 	return (
-		<>
-			<Box mx={8} mt={8} pb={36}>
-				{renderedItems}
-			</Box>
-			{user.admin && (
-				<Affix bottom={16} right={16}>
-					<ActionIcon size='xl' radius='xl' onClick={openAddSongs}>
-						<TbPlus />
-					</ActionIcon>
-				</Affix>
-			)}
-		</>
+		<Group mx={8} mt={8} pb={36}>
+			{renderedItems}
+		</Group>
 	);
 };

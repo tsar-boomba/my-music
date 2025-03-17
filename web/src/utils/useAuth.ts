@@ -16,13 +16,13 @@ const fetcher = (url: string): Promise<User | undefined> =>
 		},
 	);
 
-export const useAuth = ({ admin }: { admin?: boolean } = {}): {
+export const useAuth = ({ admin, allowAnon }: { admin?: boolean; allowAnon?: boolean } = {}): {
 	user?: User;
 } => {
 	const navigate = useNavigate();
 	const { data: user, error } = useSWR(apiUrl('/check-auth'), fetcher);
 
-	if (error) {
+	if (error && !allowAnon) {
 		navigate('/login');
 	}
 
