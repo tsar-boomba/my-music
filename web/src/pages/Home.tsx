@@ -50,14 +50,14 @@ export const Home = () => {
 
 	if (width <= MOBILE_WIDTH) {
 		return (
-			<Stack mx={12} mt={12} gap={12} style={{ overflow: 'auto' }} ref={ref}>
+			<Stack p={12} gap={12} style={{ overflow: 'auto' }} ref={ref}>
 				{renderedItems}
 			</Stack>
 		);
 	}
 
 	return (
-		<Group mx={8} mt={8} pb={36}>
+		<Group p={8} style={{ overflow: 'auto' }}>
 			{renderedItems}
 		</Group>
 	);

@@ -69,7 +69,7 @@ export const MobileLayout = ({
 	}
 
 	return (
-		<Box pb={TABS_HEIGHT + 65 + 12} style={{ overflow: 'none' }}>
+		<Box pb={245} style={{ overflow: 'none' }}>
 			<PlaybackManagerProvider ref={playbackRef}>
 				{children}
 			</PlaybackManagerProvider>
