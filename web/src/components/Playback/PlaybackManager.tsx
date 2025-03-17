@@ -9,7 +9,6 @@ export type PlayingManagerContext = {
 	playing: Song | null;
 };
 
-
 const playbackContext = createContext<{
 	playing: () => Song | null;
 	setPlaying: (song: Song | null) => void;
@@ -25,7 +24,7 @@ export const PlaybackManagerProvider = ({
 	ref,
 }: {
 	children: ReactNode;
-} & { ref: PlayingManagerContext}) => {
+} & { ref: PlayingManagerContext }) => {
 	return (
 		<playbackContext.Provider
 			value={{
@@ -38,9 +37,7 @@ export const PlaybackManagerProvider = ({
 	);
 };
 
-export const PlaybackManager = ({
-	ref
-}: {ref: PlayingManagerContext}) => {
+export const PlaybackManager = ({ ref }: { ref: PlayingManagerContext }) => {
 	const { data: songs } = useSWR<Song[]>('/songs', apiFetcher);
 	const [song, setSong] = useState<Song | null>(null);
 	ref.setPlaying = setSong;
@@ -57,21 +54,27 @@ export const PlaybackManager = ({
 
 	return (
 		<div>
-			<Playback song={song} nextSong={(state) => {
-				if (state.shuffle !== 'shuffle') {
-					setSong(nextSong);
-					return;
-				}
+			<Playback
+				song={song}
+				nextSong={(state) => {
+					if (state.shuffle !== 'shuffle') {
+						setSong(nextSong);
+						return;
+					}
 
-				setSong(songs[Math.floor(Math.random() * songs.length)]);
-			}} prevSong={(state) => {
-				if (state.shuffle !== 'shuffle') {
-					setSong(prevSong);
-					return;
-				}
+					setSong(songs[Math.floor(Math.random() * songs.length)]);
+				}}
+				prevSong={(state) => {
+					if (state.shuffle !== 'shuffle') {
+						setSong(prevSong);
+						return;
+					}
 
-				setSong(songs[Math.floor(Math.random() * songs.length)]);
-			}} />
+					setSong(songs[Math.floor(Math.random() * songs.length)]);
+				}}
+				peekNext={() => nextSong}
+				peekPrev={() => prevSong}
+			/>
 		</div>
 	);
 };

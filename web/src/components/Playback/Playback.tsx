@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { apiFetcher, HOST } from '../../api';
 import { Song } from '../../types/Song';
 import { Source } from '../../types/Source';
@@ -45,6 +45,8 @@ export const Playback = ({
 	song: Song;
 	prevSong: (state: PlayerState) => void;
 	nextSong: (state: PlayerState) => void;
+	peekNext: (state: PlayerState) => Song;
+	peekPrev: (state: PlayerState) => Song;
 }) => {
 	const { data: sources, error } = useSWR<Source[]>(
 		`/songs/${song.id}/sources`,
@@ -67,6 +69,7 @@ export const Playback = ({
 
 	const { start: startInterval, stop: stopInterval } = useInterval(() => {
 		const audio = audioRef.current;
+		console.log(audio);
 
 		if (!duration || playState === 'none') {
 			setPlayed({ percent: 0, seconds: 0 });
@@ -120,10 +123,17 @@ export const Playback = ({
 		});
 	};
 
-	useEffect(() => {
-		if (!audioRef.current) return;
+	// Recreate audio on source changes
+	useShallowEffect(() => {
+		if (!sources || !sources.length) return;
 
+		console.log('sources update:', sources);
+		audioRef.current = new Audio();
 		const audio = audioRef.current;
+		for (const source of sources) {
+			audio.src = `${location.protocol}//${HOST}/api/sources/${source.id}/data`;
+		}
+
 		const onLoaded = () => {
 			setDuration(audio.duration);
 		};
@@ -136,9 +146,8 @@ export const Playback = ({
 			setPlayState('paused');
 		};
 		const onEnd = () => {
-			if (loopState !== 'loop-song') {
+			if (!audioRef.current.loop) {
 				nextSong(playerState());
-				audio.play();
 			}
 		};
 
@@ -147,13 +156,10 @@ export const Playback = ({
 		audio.addEventListener('pause', onPause);
 		audio.addEventListener('ended', onEnd);
 
-		if (playState === 'playing') {
-			audio.play();
-		}
+		audio.loop = loopState === 'loop-song';
 
-		if (loopState === 'loop-song') {
-			audio.loop = true;
-		}
+		audio.currentTime = 0;
+		audio.play();
 
 		return () => {
 			audio.removeEventListener('loadeddata', onLoaded);
@@ -163,18 +169,6 @@ export const Playback = ({
 			audio.pause();
 			audio.src = '';
 		};
-	}, []);
-
-	useShallowEffect(() => {
-		if (!sources || !sources.length) return;
-
-		console.log('sources update:', sources);
-		for (const source of sources) {
-			audioRef.current.src = `${location.protocol}//${HOST}/api/sources/${source.id}/data`;
-		}
-
-		audioRef.current.currentTime = 0;
-		audioRef.current.play();
 	}, [sources]);
 
 	if (error) {
