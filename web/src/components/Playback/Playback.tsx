@@ -177,6 +177,8 @@ export const Playback = ({
 		audio.loop = loopState === 'loop-song';
 
 		audio.currentTime = 0;
+		audio.volume = volume;
+		audio.muted = muted;
 		audio.play();
 
 		return () => {
