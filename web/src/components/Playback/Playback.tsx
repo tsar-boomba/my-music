@@ -20,7 +20,6 @@ import {
 	TbPlayerSkipBackFilled,
 	TbPlayerSkipForwardFilled,
 	TbRepeat,
-	TbRepeatOff,
 	TbRepeatOnce,
 } from 'react-icons/tb';
 import { useInterval, useShallowEffect } from '@mantine/hooks';
