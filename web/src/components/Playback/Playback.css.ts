@@ -11,4 +11,5 @@ export const base = style({
 	},
 	paddingBottom: vars.spacing.xs,
 	paddingTop: vars.spacing.xs,
+	pointerEvents: 'auto',
 });

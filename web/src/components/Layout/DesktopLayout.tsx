@@ -27,16 +27,20 @@ export const DesktopLayout = ({
 	return (
 		<Box pt={60}>
 			<Header
-				links={[
-					{
-						label: 'Home',
-						link: '/',
-					},
-					{
-						label: 'Settings',
-						link: '/settings',
-					},
-				]}
+				links={
+					!user || user.admin
+						? [
+								{
+									label: 'Home',
+									link: '/',
+								},
+								{
+									label: 'Settings',
+									link: '/settings',
+								},
+							]
+						: []
+				}
 			/>
 			{children}
 			<Affix bottom={0} left={0} right={0}>

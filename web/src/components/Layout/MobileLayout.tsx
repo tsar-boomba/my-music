@@ -1,6 +1,5 @@
 import {
 	ActionIcon,
-	Affix,
 	Box,
 	Group,
 	Stack,
@@ -63,18 +62,18 @@ export const MobileLayout = ({
 	}
 
 	return (
-		<Box pb={245} style={{ overflow: 'none' }}>
+		<Box style={{ overflow: 'none' }}>
 			{children}
 
-			<Affix bottom={0} left={0} right={0}>
+			<Box
+				pos='sticky'
+				bottom={0}
+				left={0}
+				right={0}
+				style={{ pointerEvents: 'none', zIndex: 1001 }}
+			>
 				<Stack gap={0}>
-					<Group
-						justify='space-between'
-						px='md'
-						bg='transparent'
-						pb='md'
-						style={{ pointerEvents: 'none' }}
-					>
+					<Group justify='space-between' px='md' bg='transparent' pb='md'>
 						<ActionIcon
 							size='lg'
 							onClick={() => toggleColorScheme()}
@@ -86,37 +85,45 @@ export const MobileLayout = ({
 								<CgMoon size={18} />
 							)}
 						</ActionIcon>
-						{user && user.admin && (
-							<ActionIcon
-								size='xl'
-								radius='xl'
-								onClick={openAddSongs}
-								style={{ pointerEvents: 'auto' }}
-							>
-								<TbPlus />
-							</ActionIcon>
-						)}
+						{!user ||
+							(user.admin && (
+								<ActionIcon
+									size='xl'
+									radius='xl'
+									onClick={openAddSongs}
+									style={{ pointerEvents: 'auto' }}
+								>
+									<TbPlus />
+								</ActionIcon>
+							))}
 					</Group>
 					{playbackManager}
-					<Tabs inverted value={tab} className={classes.bottom}>
-						<Tabs.List grow>
-							{TABS.map(({ name, path, icon, page }) => (
-								<Tabs.Tab
-									value={page}
-									onClick={() => nav(path)}
-									key={path}
-									pb='md'
-								>
-									<Stack gap={0} align='center'>
-										{icon}
-										<div>{name}</div>
-									</Stack>
-								</Tabs.Tab>
-							))}
-						</Tabs.List>
-					</Tabs>
+					{user?.admin && (
+						<Tabs
+							inverted
+							value={tab}
+							className={classes.bottom}
+							style={{ pointerEvents: 'auto' }}
+						>
+							<Tabs.List grow>
+								{TABS.map(({ name, path, icon, page }) => (
+									<Tabs.Tab
+										value={page}
+										onClick={() => nav(path)}
+										key={path}
+										pb='md'
+									>
+										<Stack gap={0} align='center'>
+											{icon}
+											<div>{name}</div>
+										</Stack>
+									</Tabs.Tab>
+								))}
+							</Tabs.List>
+						</Tabs>
+					)}
 				</Stack>
-			</Affix>
+			</Box>
 		</Box>
 	);
 };
