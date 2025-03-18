@@ -1,4 +1,4 @@
-import { Button, Center, Group, Loader, Paper, Stack, Text, TextInput } from '@mantine/core';
+import { Button, Center, Group, Loader, Paper, PasswordInput, Stack, Text, TextInput } from '@mantine/core';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { TbPlus } from 'react-icons/tb';
@@ -71,7 +71,7 @@ export const Users = () => {
 				})}
 			>
 				<TextInput {...register('username')} label='Username' withAsterisk />
-				<TextInput {...register('password')} label='Password' withAsterisk />
+				<PasswordInput {...register('password')} label='Password' withAsterisk />
 				<Button leftSection={<TbPlus />} type='submit' loading={creatingUser}>
 					Create User
 				</Button>
