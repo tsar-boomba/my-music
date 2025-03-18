@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { apiFetcher, HOST } from '../../api';
 import { Song } from '../../types/Song';
 import { Source } from '../../types/Source';
@@ -34,6 +34,7 @@ export type PlayerState = {
 	muted: boolean;
 };
 
+const MEDIA_SESSION = 'mediaSession' in navigator;
 const LOADED_INTERVAL_MS = 250;
 
 const formatSeconds = (seconds: number): string => {
@@ -52,8 +53,8 @@ export const Playback = ({
 	song: Song;
 	prevSong: (state: PlayerState) => void;
 	nextSong: (state: PlayerState) => void;
-	peekNext: (state: PlayerState) => Song;
-	peekPrev: (state: PlayerState) => Song;
+	peekNext: (state: PlayerState) => Song | null;
+	peekPrev: (state: PlayerState) => Song | null;
 }) => {
 	const { data: sources, error } = useSWR<Source[]>(
 		`/songs/${song.id}/sources`,
@@ -72,18 +73,34 @@ export const Playback = ({
 	const [shuffle, setShuffle] = useState<PlayerState['shuffle']>('none');
 	const [volume, setVolume] = useState<PlayerState['volume']>(1);
 	const [muted, setMuted] = useState<PlayerState['muted']>(false);
-	const theme = useMantineTheme();
-
-	const playerState = (): PlayerState => ({
-		loopState,
+	// Allow things outside of react to have an accurate view of the player state
+	const playerStateRef = useRef<PlayerState>({
 		playState,
+		loopState,
+		muted,
 		shuffle,
 		volume,
-		muted,
 	});
+	const theme = useMantineTheme();
+
+	const playerState = (): PlayerState => ({ ...playerStateRef.current });
+
+	const updatePositionState = () => {};
+
+	// update player state ref
+	useEffect(() => {
+		playerStateRef.current = {
+			playState,
+			loopState,
+			muted,
+			shuffle,
+			volume,
+		};
+	}, [playState, loopState, shuffle, volume, muted]);
 
 	const { start: startInterval, stop: stopInterval } = useInterval(() => {
 		const audio = audioRef.current;
+		updatePositionState();
 
 		if (!duration || playState === 'none') {
 			setPlayed({ percent: 0, seconds: 0 });
@@ -137,26 +154,91 @@ export const Playback = ({
 		});
 	};
 
-	// Recreate audio on source changes
-	useShallowEffect(() => {
-		if (!sources || !sources.length) return;
+	// Handle events from media session
+	useEffect(() => {
+		if (!MEDIA_SESSION) return;
 
-		audioRef.current = new Audio();
+		const handler: MediaSessionActionHandler = ({
+			action,
+			seekOffset,
+			seekTime,
+		}) => {
+			switch (action) {
+				case 'stop':
+					console.warn('unimplemented stop action');
+					return;
+				case 'nexttrack':
+					nextSong(playerState());
+					return;
+				case 'pause':
+					audioRef.current.pause();
+					return;
+				case 'play':
+					audioRef.current.play();
+					return;
+				case 'previoustrack':
+					prevSong(playerState());
+					return;
+				case 'seekbackward':
+					audioRef.current.currentTime -= seekOffset ?? 10;
+					return;
+				case 'seekforward':
+					audioRef.current.currentTime += seekOffset ?? 10;
+					return;
+				case 'seekto':
+					audioRef.current.currentTime = seekTime ?? 0;
+					return;
+				case 'skipad':
+					console.warn('unimplemented skip ad');
+			}
+		};
+
+		const actions: MediaSessionAction[] = [
+			'nexttrack',
+			'pause',
+			'play',
+			'previoustrack',
+			'seekbackward',
+			'seekforward',
+			'seekto',
+		];
+
+		actions.forEach((action) =>
+			navigator.mediaSession.setActionHandler(action, handler),
+		);
+
+		return () =>
+			actions.forEach((action) =>
+				navigator.mediaSession.setActionHandler(action, null),
+			);
+	}, []);
+
+	// Set up listeners for audio element
+	useEffect(() => {
 		const audio = audioRef.current;
-		for (const source of sources) {
-			audio.src = `${location.protocol}//${HOST}/api/sources/${source.id}/data`;
-		}
-
 		const onLoaded = () => {
 			setDuration(audio.duration);
+			if (MEDIA_SESSION) {
+				navigator.mediaSession.setPositionState({
+					duration: audioRef.current.duration,
+					position: audioRef.current.currentTime,
+					playbackRate: audioRef.current.playbackRate,
+				});
+			}
 		};
 		const onPlay = () => {
 			startInterval();
 			setPlayState('playing');
+			if (MEDIA_SESSION) {
+				navigator.mediaSession.playbackState = 'playing';
+			}
 		};
 		const onPause = () => {
 			stopInterval();
 			setPlayState('paused');
+			if (MEDIA_SESSION) {
+				navigator.mediaSession.playbackState = 'paused';
+			}
 		};
 		const onEnd = () => {
 			if (!audioRef.current.loop) {
@@ -167,19 +249,22 @@ export const Playback = ({
 			setVolume(audio.volume);
 			setMuted(audio.muted);
 		};
+		const onCanPlay = () => {
+			audio.play();
+		};
 
 		audio.addEventListener('loadeddata', onLoaded);
 		audio.addEventListener('play', onPlay);
 		audio.addEventListener('pause', onPause);
 		audio.addEventListener('ended', onEnd);
 		audio.addEventListener('volumechange', onVolumeChange);
+		audio.addEventListener('canplay', onCanPlay);
 
 		audio.loop = loopState === 'loop-song';
 
 		audio.currentTime = 0;
 		audio.volume = volume;
 		audio.muted = muted;
-		audio.play();
 
 		return () => {
 			audio.removeEventListener('loadeddata', onLoaded);
@@ -187,9 +272,34 @@ export const Playback = ({
 			audio.removeEventListener('pause', onPause);
 			audio.removeEventListener('ended', onEnd);
 			audio.removeEventListener('volumechange', onVolumeChange);
+			audio.removeEventListener('canplay', onCanPlay);
 			audio.pause();
 			audio.src = '';
 		};
+	}, []);
+
+	// Handle song/source changes
+	useShallowEffect(() => {
+		if (!sources || !sources.length) return;
+
+		const audio = audioRef.current;
+		audio.src = `${location.protocol}//${HOST}/api/sources/${sources[0].id}/data`;
+		if (MEDIA_SESSION) {
+			navigator.mediaSession.metadata = new MediaMetadata({
+				title: song.title,
+				artist: `Ibomb's Music`,
+				artwork: [
+					{
+						src: 'data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💣</text></svg>',
+						type: 'image/svg+xml',
+					},
+				],
+				// TODO: populate other media data (artists, album, album cover)
+			});
+		}
+
+		audio.currentTime = 0;
+		audio.play();
 	}, [sources]);
 
 	if (error) {
