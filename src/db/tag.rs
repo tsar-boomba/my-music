@@ -29,6 +29,15 @@ pub struct Tag {
 }
 
 impl Tag {
+    pub async fn get_all(
+        executor: impl Executor<'_, Database = super::DB>,
+    ) -> Result<Vec<Self>, Error> {
+        sqlx::query_as!(Tag, "SELECT * FROM tags")
+            .fetch_all(executor)
+            .await
+            .map_err(|e| Error::SelectError("tags", e))
+    }
+
     pub async fn for_song(
         song_id: i64,
         executor: impl Executor<'_, Database = super::DB>,

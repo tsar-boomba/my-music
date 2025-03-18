@@ -1,7 +1,7 @@
 import useSWR from 'swr';
 import { apiFetcher } from '../../api';
 import { Source } from '../../types/Source';
-import { Center, Loader, Paper, Stack, Text } from '@mantine/core';
+import { Center, Group, Loader, Paper, Stack, Text } from '@mantine/core';
 
 export const Sources = () => {
 	const { data: sources, error } = useSWR<Source[]>('/sources', apiFetcher);
@@ -19,14 +19,15 @@ export const Sources = () => {
 	}
 
 	return (
-		<Stack align='center'>
-			<Stack>
+		<Stack align='center' p='md'>
+			<Group justify='center' align='stretch'>
 				{sources.map((source) => (
-					<Paper key={source.id} withBorder shadow='sm' p='md'>
+					<Paper key={source.id} withBorder shadow='sm' p='md' maw={250}>
 						<Text fw={700}>{source.path}</Text>
+						<Text>Stored in: {source.storageBackendName}</Text>
 					</Paper>
 				))}
-			</Stack>
+			</Group>
 		</Stack>
 	);
 };

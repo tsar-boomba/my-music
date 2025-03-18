@@ -50,7 +50,7 @@ export const Home = () => {
 
 	if (width <= MOBILE_WIDTH) {
 		return (
-			<Stack p={12} gap={12} style={{ overflow: 'auto' }} ref={ref}>
+			<Stack p={12} gap={12} ref={ref}>
 				{renderedItems}
 			</Stack>
 		);

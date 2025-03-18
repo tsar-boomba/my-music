@@ -1,8 +1,9 @@
 use axum::{extract, Json};
 use axum_extra::extract::CookieJar;
+use serde::Deserialize;
 
 use crate::{
-    db::{Song, Source},
+    db::{Song, Source, Tag, User},
     ApiError,
 };
 
@@ -34,4 +35,48 @@ pub async fn get_sources(
 ) -> Result<Json<Vec<Source>>, ApiError> {
     let _user = authenticate(&state, cookies.get(AUTH_COOKIE)).await?;
     Ok(Json(Source::get_all(&state.sqlite).await?))
+}
+
+pub async fn get_users(
+    extract::State(state): extract::State<State>,
+    cookies: CookieJar,
+) -> Result<Json<Vec<User>>, ApiError> {
+    let user = authenticate(&state, cookies.get(AUTH_COOKIE)).await?;
+    if !user.admin {
+        return Err(ApiError::Unauthorized)
+    }
+
+    Ok(Json(User::get_all(&state.sqlite).await?))
+}
+
+#[derive(Debug, Deserialize)]
+pub struct NewUser {
+    username: String,
+    password: String,
+    #[serde(default)]
+    admin: bool,
+}
+
+pub async fn create_user(
+    extract::State(state): extract::State<State>,
+    cookies: CookieJar,
+    Json(new_user): Json<NewUser>,
+) -> Result<(), ApiError> {
+    let user = authenticate(&state, cookies.get(AUTH_COOKIE)).await?;
+    if !user.admin {
+        return Err(ApiError::Unauthorized)
+    }
+
+    User::insert_new(&new_user.username, &new_user.password, new_user.admin, &state.sqlite).await?;
+
+    Ok(())
+}
+
+pub async fn get_tags(
+    extract::State(state): extract::State<State>,
+    cookies: CookieJar,
+) -> Result<Json<Vec<Tag>>, ApiError> {
+    let _user = authenticate(&state, cookies.get(AUTH_COOKIE)).await?;
+
+    Ok(Json(Tag::get_all(&state.sqlite).await?))
 }

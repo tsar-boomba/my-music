@@ -4,5 +4,5 @@ import { vars } from '../../theme';
 export const bottom = style({
 	backgroundColor:
 		'light-dark(var(--mantine-color-body), var(--mantine-color-body))',
-	boxShadow: vars.shadows.xl,
+	boxShadow: vars.shadows.sm,
 });

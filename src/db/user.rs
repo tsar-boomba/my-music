@@ -26,6 +26,37 @@ pub struct User {
 }
 
 impl User {
+    pub async fn get_all(
+        executor: impl Executor<'_, Database = super::DB>,
+    ) -> Result<Vec<Self>, Error> {
+        sqlx::query_as!(User, "SELECT * FROM users")
+            .fetch_all(executor)
+            .await
+            .map_err(|e| Error::SelectError("users", e))
+    }
+
+    pub async fn insert_new(
+        username: &str,
+        password: &str,
+        admin: bool,
+        executor: impl Executor<'_, Database = super::DB>,
+    ) -> Result<(), Error> {
+        let hashed_pass = Self::hash_password(password).await;
+        sqlx::query!(
+            r#"
+		INSERT INTO users(username, hashed_pass, admin)
+		VALUES (?1, ?2, ?3)
+		"#,
+            username,
+            hashed_pass,
+            admin,
+        )
+        .execute(executor)
+        .await
+        .map_err(|e| Error::InsertError("tags", e))
+        .map(|_| ())
+    }
+
     pub async fn try_insert_new(
         username: &str,
         password: &str,

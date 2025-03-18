@@ -36,12 +36,13 @@ pub fn api_router(config: Arc<Config>, sqlite: Pool<Sqlite>) -> color_eyre::Resu
     let router = Router::new()
         .route("/login", post(auth::login))
         .route("/check-auth", get(auth::check_auth))
-        .route("/tags", get(move || async move { "[]" }))
+        .route("/tags", get(crud::get_tags))
         .route("/add-songs", get(add_song::handler))
         .route("/songs", get(crud::get_songs))
         .route("/songs/{id}/sources", get(crud::get_sources_for_song))
         .route("/sources", get(crud::get_sources))
         .route("/sources/{id}/data", get(get_source))
+        .route("/users", get(crud::get_users).post(crud::create_user))
         .with_state(state);
 
     Ok(router)

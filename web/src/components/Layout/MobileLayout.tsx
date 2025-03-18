@@ -62,15 +62,14 @@ export const MobileLayout = ({
 	}
 
 	return (
-		<Box style={{ overflow: 'none' }}>
+		<Stack mih='100%' gap={0} justify='space-between'>
 			{children}
-
 			<Box
 				pos='sticky'
 				bottom={0}
 				left={0}
 				right={0}
-				style={{ pointerEvents: 'none', zIndex: 1001 }}
+				style={{ pointerEvents: 'none', zIndex: 1 }}
 			>
 				<Stack gap={0}>
 					<Group justify='space-between' px='md' bg='transparent' pb='md'>
@@ -111,9 +110,9 @@ export const MobileLayout = ({
 										value={page}
 										onClick={() => nav(path)}
 										key={path}
-										pb='md'
+										py='md'
 									>
-										<Stack gap={0} align='center'>
+										<Stack gap={2} align='center'>
 											{icon}
 											<div>{name}</div>
 										</Stack>
@@ -124,6 +123,6 @@ export const MobileLayout = ({
 					)}
 				</Stack>
 			</Box>
-		</Box>
+		</Stack>
 	);
 };
