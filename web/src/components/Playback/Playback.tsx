@@ -5,6 +5,7 @@ import { Source } from '../../types/Source';
 import useSWR from 'swr';
 import {
 	ActionIcon,
+	Badge,
 	Box,
 	Group,
 	Progress,
@@ -46,6 +47,12 @@ const formatSeconds = (seconds: number): string => {
 const clamp = (n: number, min: number, max: number): number =>
 	Math.min(Math.max(n, min), max);
 
+const fileTypeFromMime = (mimeType: string): string => {
+	const [_, fileType] = mimeType.split('/');
+	if (fileType === 'mpeg') return 'mp3';
+	return fileType;
+};
+
 export const Playback = ({
 	song,
 	nextSong,
@@ -74,6 +81,7 @@ export const Playback = ({
 	const [shuffle, setShuffle] = useState<PlayerState['shuffle']>('none');
 	const [volume, setVolume] = useState<PlayerState['volume']>(1);
 	const [muted, setMuted] = useState<PlayerState['muted']>(false);
+	const [selectedSource, setSelectedSource] = useState<Source | null>(null);
 	// Allow things outside of react to have an accurate view of the player state
 	const playerStateRef = useRef<PlayerState>({
 		playState,
@@ -86,7 +94,15 @@ export const Playback = ({
 
 	const playerState = (): PlayerState => ({ ...playerStateRef.current });
 
-	const updatePositionState = () => {};
+	const updatePositionState = () => {
+		if (MEDIA_SESSION) {
+			navigator.mediaSession.setPositionState({
+				duration: audioRef.current.duration,
+				position: audioRef.current.currentTime,
+				playbackRate: audioRef.current.playbackRate,
+			});
+		}
+	};
 
 	// update player state ref
 	useEffect(() => {
@@ -221,19 +237,14 @@ export const Playback = ({
 		const audio = audioRef.current;
 		const onLoaded = () => {
 			setDuration(audio.duration);
-			if (MEDIA_SESSION) {
-				navigator.mediaSession.setPositionState({
-					duration: audioRef.current.duration,
-					position: audioRef.current.currentTime,
-					playbackRate: audioRef.current.playbackRate,
-				});
-			}
+			updatePositionState();
 		};
 		const onPlay = () => {
 			startInterval();
 			setPlayState('playing');
 			if (MEDIA_SESSION) {
 				navigator.mediaSession.playbackState = 'playing';
+				updatePositionState();
 			}
 		};
 		const onPause = () => {
@@ -241,6 +252,7 @@ export const Playback = ({
 			setPlayState('paused');
 			if (MEDIA_SESSION) {
 				navigator.mediaSession.playbackState = 'paused';
+				updatePositionState();
 			}
 		};
 		const onEnd = () => {
@@ -254,6 +266,7 @@ export const Playback = ({
 		};
 		const onCanPlay = () => {
 			audio.play();
+			updatePositionState();
 		};
 
 		audio.addEventListener('loadeddata', onLoaded);
@@ -287,6 +300,7 @@ export const Playback = ({
 
 		const audio = audioRef.current;
 		audio.src = `${location.protocol}//${HOST}/api/sources/${sources[0].id}/data`;
+		setSelectedSource(sources[0]);
 		if (MEDIA_SESSION) {
 			navigator.mediaSession.metadata = new MediaMetadata({
 				title: song.title,
@@ -309,22 +323,21 @@ export const Playback = ({
 		console.error(error);
 	}
 
-	if (sources && !sources.length) {
+	if ((sources && !sources.length) || !selectedSource) {
 		return <Text>No sources to play from</Text>;
 	}
 
 	return (
 		<Box className={classes.base}>
 			<Stack gap='xs' align='stretch'>
-				<Text
-					size='lg'
-					fw={600}
-					ta='left'
-					px='xs'
-					style={{ whiteSpace: 'nowrap' }}
-				>
-					{song.title}
-				</Text>
+				<Group gap='xs' align='center'>
+					<Badge variant='light'>
+						{fileTypeFromMime(selectedSource.mimeType)}
+					</Badge>
+					<Text size='lg' fw={600} ta='left' style={{ whiteSpace: 'nowrap' }}>
+						{song.title}
+					</Text>
+				</Group>
 				<Group align='center' justify='center' gap='xs'>
 					<Text w={48} ta='right' c='dimmed' size='sm'>
 						{formatSeconds(played.seconds)}

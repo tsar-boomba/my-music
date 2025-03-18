@@ -9,7 +9,6 @@ export const base = style({
 	[vars.lightSelector]: {
 		borderTop: `1px solid ${vars.colors.gray[3]}`,
 	},
-	paddingBottom: vars.spacing.xs,
-	paddingTop: vars.spacing.xs,
+	padding: vars.spacing.xs,
 	pointerEvents: 'auto',
 });
