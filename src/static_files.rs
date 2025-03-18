@@ -39,12 +39,13 @@ pub async fn handle_static(
         raw_file_path
     };
 
+    let gzip_path = canonicalize(add_extension(&raw_file_path, "gz")).await.ok();
+    let have_gz_version = gzip_path.is_some();
     let file_path = match canonicalize(&raw_file_path).await {
         Ok(file_path) => file_path,
         Err(err) => match err.kind() {
-            ErrorKind::NotFound => {
-                return Ok(not_found(path));
-            }
+            ErrorKind::NotFound if have_gz_version => gzip_path.clone().unwrap(),
+            ErrorKind::NotFound => return Ok(not_found(path)),
             _ => return Err(err.into()),
         },
     };
@@ -56,15 +57,13 @@ pub async fn handle_static(
     }
 
     let mut final_path = &file_path;
-    let gzip_path = add_extension(&file_path, "gz");
-    let have_gz_version = canonicalize(&gzip_path).await.is_ok();
-    let is_gzip = have_gz_version || file_path.ends_with("gz");
-    tracing::debug!("gzip path: {}", gzip_path.display());
+    let is_gz_ext = file_path.ends_with("gz");
+    let is_gzip = have_gz_version || is_gz_ext;
 
-    if have_gz_version {
+    if have_gz_version && !is_gz_ext {
         // We have a compressed version available, use that instead
         tracing::debug!("Using gzip version for {}", file_path.display());
-        final_path = &gzip_path;
+        final_path = gzip_path.as_ref().unwrap();
     }
 
     let file = match OpenOptions::new().read(true).open(final_path).await {
@@ -77,7 +76,7 @@ pub async fn handle_static(
 
     let stream = ReaderStream::new(BufReader::new(file)).map(|read_res| read_res.map(Frame::data));
     // Use original path without gz for mime type
-    let mime = mime_guess::from_path(&file_path).first_or_text_plain();
+    let mime = mime_guess::from_path(&raw_file_path).first_or_text_plain();
 
     let cookie = Cookie::build(("domain", config.domain.to_string()))
         .domain(config.domain.host().unwrap_or_default())

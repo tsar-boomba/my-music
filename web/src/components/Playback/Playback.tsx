@@ -111,11 +111,13 @@ export const Playback = ({
 
 		const amountPlayed = audio.currentTime;
 		const percentPlayed = (amountPlayed / duration) * 100;
-		const amountBuffered = audio.buffered.end(0) - audio.buffered.start(0);
-		const percentBuffered = (amountBuffered / duration) * 100;
+		if (audio.buffered.length) {
+			const amountBuffered = audio.buffered.end(0) - audio.buffered.start(0);
+			const percentBuffered = (amountBuffered / duration) * 100;
+			setBuffered(percentBuffered - percentPlayed);
+		}
 
 		setPlayed({ percent: percentPlayed, seconds: amountPlayed });
-		setBuffered(percentBuffered - percentPlayed);
 	}, LOADED_INTERVAL_MS);
 
 	const togglePlayState = () => {
@@ -314,7 +316,13 @@ export const Playback = ({
 	return (
 		<Box className={classes.base}>
 			<Stack gap='xs' align='stretch'>
-				<Text size='lg' fw={600} ta='left' px='xs' style={{ whiteSpace: 'nowrap' }}>
+				<Text
+					size='lg'
+					fw={600}
+					ta='left'
+					px='xs'
+					style={{ whiteSpace: 'nowrap' }}
+				>
 					{song.title}
 				</Text>
 				<Group align='center' justify='center' gap='xs'>
