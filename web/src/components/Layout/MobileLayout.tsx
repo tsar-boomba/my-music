@@ -67,9 +67,18 @@ export const MobileLayout = ({
 			{children}
 
 			<Affix bottom={0} left={0} right={0} className={classes.bottom}>
-				<Stack>
-					<Group justify='space-between' px='md'>
-						<ActionIcon size='lg' onClick={() => toggleColorScheme()}>
+				<Stack pb='md'>
+					<Group
+						justify='space-between'
+						px='md'
+						bg='transparent'
+						style={{ pointerEvents: 'none' }}
+					>
+						<ActionIcon
+							size='lg'
+							onClick={() => toggleColorScheme()}
+							style={{ pointerEvents: 'auto' }}
+						>
 							{colorScheme === 'dark' ? (
 								<CgSun size={18} />
 							) : (
@@ -77,7 +86,12 @@ export const MobileLayout = ({
 							)}
 						</ActionIcon>
 						{user && user.admin && (
-							<ActionIcon size='xl' radius='xl' onClick={openAddSongs}>
+							<ActionIcon
+								size='xl'
+								radius='xl'
+								onClick={openAddSongs}
+								style={{ pointerEvents: 'auto' }}
+							>
 								<TbPlus />
 							</ActionIcon>
 						)}

@@ -41,9 +41,19 @@ export const DesktopLayout = ({
 			{children}
 			<Affix bottom={0} left={0} right={0} pb='md'>
 				<Stack>
-					<Group justify='flex-end' px='md'>
+					<Group
+						justify='flex-end'
+						px='md'
+						bg='transparent'
+						style={{ pointerEvents: 'none' }}
+					>
 						{user && user.admin && (
-							<ActionIcon size='xl' radius='xl' onClick={openAddSongs}>
+							<ActionIcon
+								size='xl'
+								radius='xl'
+								onClick={openAddSongs}
+								style={{ pointerEvents: 'auto' }}
+							>
 								<TbPlus strokeWidth={3} />
 							</ActionIcon>
 						)}
