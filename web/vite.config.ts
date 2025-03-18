@@ -8,6 +8,8 @@ export default defineConfig({
 	plugins: [
 		react(),
 		vanillaExtractPlugin(),
-		viteCompression()
+		viteCompression({
+			deleteOriginFile: true,
+		})
 	],
 });

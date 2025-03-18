@@ -5,13 +5,14 @@ import { Source } from '../../types/Source';
 import useSWR from 'swr';
 import {
 	ActionIcon,
+	Box,
 	Group,
-	Paper,
 	Progress,
 	Stack,
 	Text,
 	useMantineTheme,
 } from '@mantine/core';
+import * as classes from './Playback.css';
 import {
 	TbArrowsShuffle,
 	TbArrowsShuffle2,
@@ -311,9 +312,9 @@ export const Playback = ({
 	}
 
 	return (
-		<Paper>
+		<Box className={classes.base}>
 			<Stack gap='xs' align='stretch'>
-				<Text ta='left' px='xs' style={{ whiteSpace: 'nowrap' }}>
+				<Text size='lg' fw={600} ta='left' px='xs' style={{ whiteSpace: 'nowrap' }}>
 					{song.title}
 				</Text>
 				<Group align='center' justify='center' gap='xs'>
@@ -408,6 +409,6 @@ export const Playback = ({
 					</ActionIcon>
 				</Group>
 			</Stack>
-		</Paper>
+		</Box>
 	);
 };

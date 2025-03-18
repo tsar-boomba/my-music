@@ -66,12 +66,13 @@ export const MobileLayout = ({
 		<Box pb={245} style={{ overflow: 'none' }}>
 			{children}
 
-			<Affix bottom={0} left={0} right={0} className={classes.bottom}>
-				<Stack pb='md'>
+			<Affix bottom={0} left={0} right={0}>
+				<Stack gap={0}>
 					<Group
 						justify='space-between'
 						px='md'
 						bg='transparent'
+						pb='md'
 						style={{ pointerEvents: 'none' }}
 					>
 						<ActionIcon
@@ -97,10 +98,15 @@ export const MobileLayout = ({
 						)}
 					</Group>
 					{playbackManager}
-					<Tabs inverted value={tab}>
+					<Tabs inverted value={tab} className={classes.bottom}>
 						<Tabs.List grow>
 							{TABS.map(({ name, path, icon, page }) => (
-								<Tabs.Tab value={page} onClick={() => nav(path)} key={path}>
+								<Tabs.Tab
+									value={page}
+									onClick={() => nav(path)}
+									key={path}
+									pb='md'
+								>
 									<Stack gap={0} align='center'>
 										{icon}
 										<div>{name}</div>

@@ -39,12 +39,13 @@ export const DesktopLayout = ({
 				]}
 			/>
 			{children}
-			<Affix bottom={0} left={0} right={0} pb='md'>
-				<Stack>
+			<Affix bottom={0} left={0} right={0}>
+				<Stack gap={0}>
 					<Group
 						justify='flex-end'
 						px='md'
 						bg='transparent'
+						pb='md'
 						style={{ pointerEvents: 'none' }}
 					>
 						{user && user.admin && (
