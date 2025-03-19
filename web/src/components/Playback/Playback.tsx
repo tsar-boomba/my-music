@@ -95,7 +95,7 @@ export const Playback = ({
 	const playerState = (): PlayerState => ({ ...playerStateRef.current });
 
 	const updatePositionState = () => {
-		if (MEDIA_SESSION) {
+		if (MEDIA_SESSION && !isNaN(audioRef.current.duration)) {
 			navigator.mediaSession.setPositionState({
 				duration: audioRef.current.duration,
 				position: audioRef.current.currentTime,
@@ -117,7 +117,6 @@ export const Playback = ({
 
 	const { start: startInterval, stop: stopInterval } = useInterval(() => {
 		const audio = audioRef.current;
-		updatePositionState();
 
 		if (!duration || playState === 'none') {
 			setPlayed({ percent: 0, seconds: 0 });
@@ -242,17 +241,17 @@ export const Playback = ({
 		const onPlay = () => {
 			startInterval();
 			setPlayState('playing');
+			updatePositionState();
 			if (MEDIA_SESSION) {
 				navigator.mediaSession.playbackState = 'playing';
-				updatePositionState();
 			}
 		};
 		const onPause = () => {
 			stopInterval();
 			setPlayState('paused');
+			updatePositionState();
 			if (MEDIA_SESSION) {
 				navigator.mediaSession.playbackState = 'paused';
-				updatePositionState();
 			}
 		};
 		const onEnd = () => {
@@ -330,11 +329,20 @@ export const Playback = ({
 	return (
 		<Box className={classes.base}>
 			<Stack gap='xs' align='stretch'>
-				<Group gap='xs' align='center'>
-					<Badge variant='light'>
+				<Group gap='xs' align='center' wrap='nowrap'>
+					<Badge variant='light' styles={{ label: { overflow: 'visible' } }}>
 						{fileTypeFromMime(selectedSource.mimeType)}
 					</Badge>
-					<Text size='lg' fw={600} ta='left' style={{ whiteSpace: 'nowrap' }}>
+					<Text
+						size='lg'
+						fw={600}
+						ta='left'
+						style={{
+							whiteSpace: 'nowrap',
+							overflow: 'hidden',
+							textOverflow: 'ellipsis',
+						}}
+					>
 						{song.title}
 					</Text>
 				</Group>

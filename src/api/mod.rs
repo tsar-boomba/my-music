@@ -5,6 +5,7 @@ mod crud;
 use std::{
     ops::{Bound, RangeBounds},
     sync::Arc,
+    time::Duration,
 };
 
 use auth::{authenticate, AUTH_COOKIE};
@@ -96,7 +97,13 @@ async fn get_source(
         )
     }
 
-    let res = builder.body(body).unwrap();
+    let mut res = builder.body(body).unwrap();
+    res.headers_mut().typed_insert(
+        headers::CacheControl::new()
+            .with_immutable()
+            .with_private()
+            .with_max_age(Duration::from_secs(7 * 24 * 60 * 60)),
+    );
 
     Ok(res)
 }
