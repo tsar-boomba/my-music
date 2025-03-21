@@ -158,6 +158,17 @@ impl StorageBackend {
         .map(|_| ())
     }
 
+    pub async fn operator_by_name(
+        name: &str,
+        executor: impl Executor<'_, Database = super::DB>,
+    ) -> Result<Option<Operator>, Error> {
+        let Some(backend) = Self::get_by_name(name, executor).await? else {
+            return Ok(None);
+        };
+
+        Some(backend.operator().await).transpose()
+    }
+
     pub async fn operator(&self) -> Result<Operator, Error> {
         let operators =
             OPERATORS.get_or_init(|| RwLock::new(FxHashMap::with_hasher(Default::default())));

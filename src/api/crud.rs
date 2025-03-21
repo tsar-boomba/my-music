@@ -3,7 +3,7 @@ use axum_extra::extract::CookieJar;
 use serde::Deserialize;
 
 use crate::{
-    db::{source::SourceWSongId, Song, Source, Tag, User},
+    db::{source::SongSource, Song, Source, Tag, User},
     ApiError,
 };
 
@@ -40,7 +40,7 @@ pub async fn get_sources(
 pub async fn get_all_sources_for_songs(
     extract::State(state): extract::State<State>,
     cookies: CookieJar,
-) -> Result<Json<Vec<SourceWSongId>>, ApiError> {
+) -> Result<Json<Vec<SongSource>>, ApiError> {
     let _user = authenticate(&state, cookies.get(AUTH_COOKIE)).await?;
     Ok(Json(Source::get_all_for_songs(&state.sqlite).await?))
 }
@@ -52,7 +52,7 @@ pub async fn delete_song(
 ) -> Result<(), ApiError> {
     let user = authenticate(&state, cookies.get(AUTH_COOKIE)).await?;
     if !user.admin {
-        return Err(ApiError::Unauthorized)
+        return Err(ApiError::Unauthorized);
     }
 
     Song::delete_w_sources(song_id, &state.sqlite).await?;
@@ -65,7 +65,7 @@ pub async fn get_users(
 ) -> Result<Json<Vec<User>>, ApiError> {
     let user = authenticate(&state, cookies.get(AUTH_COOKIE)).await?;
     if !user.admin {
-        return Err(ApiError::Unauthorized)
+        return Err(ApiError::Unauthorized);
     }
 
     Ok(Json(User::get_all(&state.sqlite).await?))
@@ -86,10 +86,16 @@ pub async fn create_user(
 ) -> Result<(), ApiError> {
     let user = authenticate(&state, cookies.get(AUTH_COOKIE)).await?;
     if !user.admin {
-        return Err(ApiError::Unauthorized)
+        return Err(ApiError::Unauthorized);
     }
 
-    User::insert_new(&new_user.username, &new_user.password, new_user.admin, &state.sqlite).await?;
+    User::insert_new(
+        &new_user.username,
+        &new_user.password,
+        new_user.admin,
+        &state.sqlite,
+    )
+    .await?;
 
     Ok(())
 }

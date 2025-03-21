@@ -36,6 +36,15 @@ export type PlayerState = {
 	secondsPlayed: number;
 };
 
+export type SongSource = Source & {
+	songId: number;
+	request: {
+		method: string;
+		uri: string;
+		headers: Record<string, string>;
+	};
+};
+
 type SongCallbacks = {
 	playPrev: () => void;
 	playNext: () => void;
@@ -61,6 +70,12 @@ const fileTypeFromMime = (mimeType: string): string => {
 	return fileType;
 };
 
+const uriForSource = (source: SongSource) => {
+	const uri = source.request.uri;
+	const localUri = uri.startsWith('/');
+	return localUri ? `${location.protocol}//${HOST}${uri}` : uri;
+};
+
 export const Playback = ({
 	song,
 	sources,
@@ -72,7 +87,7 @@ export const Playback = ({
 	peekPrev,
 }: {
 	song: Song;
-	sources: Source[] | undefined;
+	sources: SongSource[] | undefined;
 	isRestored: boolean;
 	playerStateRef: RefObject<PlayerState>;
 } & SongCallbacks) => {
@@ -313,10 +328,11 @@ export const Playback = ({
 
 	// Handle song/source changes
 	useEffect(() => {
-		if (!sources || !sources.length) return;
+		if (!selectedSource) return;
 
 		const audio = audioRef.current;
-		audio.src = `${location.protocol}//${HOST}/api/sources/${sources[0].id}/data`;
+		audio.src = uriForSource(selectedSource);
+
 		if (MEDIA_SESSION) {
 			navigator.mediaSession.metadata = new MediaMetadata({
 				title: song.title,

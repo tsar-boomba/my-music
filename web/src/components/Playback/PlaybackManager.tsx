@@ -7,10 +7,9 @@ import {
 	useRef,
 } from 'react';
 import { Song } from '../../types/Song';
-import { Playback, PlayerState } from './Playback';
+import { Playback, PlayerState, SongSource } from './Playback';
 import { useInterval, useLocalStorage } from '@mantine/hooks';
 import useSWR from 'swr';
-import { Source } from '../../types/Source';
 import { apiFetcher } from '../../api';
 
 export type SessionInit = {
@@ -77,7 +76,7 @@ export const PlaybackManager = ({
 		defaultValue: 0,
 	});
 	const song: Song | null = songs[playing] ?? null;
-	const { data: allSources } = useSWR<(Source & { songId: number })[]>(
+	const { data: allSources } = useSWR<SongSource[]>(
 		'/songs/sources',
 		apiFetcher,
 	);
