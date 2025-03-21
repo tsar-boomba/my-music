@@ -72,12 +72,12 @@ export const Home = () => {
 		});
 
 	const renderedItems = songs.map((song, i) => (
-		<UnstyledButton onClick={() => startSession({ songs, start: i })}>
+		<UnstyledButton key={song.id} onClick={() => startSession({ songs, start: i })}>
 			<Paper withBorder shadow='sm' p='sm'>
 				<Group wrap='nowrap' justify='space-between'>
 					<Text>{song.title}</Text>
 					{user.admin && (
-						<Menu key={song.id} shadow='md'>
+						<Menu shadow='md'>
 							<Menu.Target>
 								<ActionIcon size='sm' variant='subtle' onClick={(e) => e.stopPropagation()}>
 									<TbDots />

@@ -157,7 +157,9 @@ export const Playback = ({
 		const amountPlayed = audio.currentTime;
 		const percentPlayed = (amountPlayed / duration) * 100;
 		if (audio.buffered.length) {
-			const amountBuffered = audio.buffered.end(0) - audio.buffered.start(0);
+			const amountBuffered =
+				audio.buffered.end(audio.buffered.length - 1) -
+				audio.buffered.start(0);
 			const percentBuffered = (amountBuffered / duration) * 100;
 			setBuffered(percentBuffered - percentPlayed);
 		}
@@ -265,6 +267,7 @@ export const Playback = ({
 	// Set up listeners for audio element
 	useEffect(() => {
 		const audio = audioRef.current;
+		audio.preload = 'auto';
 		const onLoaded = () => {
 			setDuration(audio.duration);
 			updatePositionState();
