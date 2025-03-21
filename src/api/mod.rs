@@ -13,7 +13,7 @@ use axum::{
     body::Body,
     extract,
     response::Response,
-    routing::{get, post},
+    routing::{delete, get, post},
     Router,
 };
 use axum_extra::extract::CookieJar;
@@ -40,7 +40,9 @@ pub fn api_router(config: Arc<Config>, sqlite: Pool<Sqlite>) -> color_eyre::Resu
         .route("/tags", get(crud::get_tags))
         .route("/add-songs", get(add_song::handler))
         .route("/songs", get(crud::get_songs))
+        .route("/songs/{id}", delete(crud::delete_song))
         .route("/songs/{id}/sources", get(crud::get_sources_for_song))
+        .route("/songs/sources", get(crud::get_all_sources_for_songs))
         .route("/sources", get(crud::get_sources))
         .route("/sources/{id}/data", get(get_source))
         .route("/users", get(crud::get_users).post(crud::create_user))

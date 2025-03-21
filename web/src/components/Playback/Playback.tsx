@@ -1,8 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
-import { apiFetcher, HOST } from '../../api';
+import { RefObject, useEffect, useRef, useState } from 'react';
+import { HOST } from '../../api';
 import { Song } from '../../types/Song';
 import { Source } from '../../types/Source';
-import useSWR from 'swr';
 import {
 	ActionIcon,
 	Badge,
@@ -26,7 +25,7 @@ import {
 	TbRepeat,
 	TbRepeatOnce,
 } from 'react-icons/tb';
-import { useInterval, useShallowEffect } from '@mantine/hooks';
+import { useInterval, useLocalStorage } from '@mantine/hooks';
 
 export type PlayerState = {
 	loopState: 'loop' | 'loop-song';
@@ -34,10 +33,19 @@ export type PlayerState = {
 	shuffle: 'none' | 'shuffle';
 	volume: number;
 	muted: boolean;
+	secondsPlayed: number;
+};
+
+type SongCallbacks = {
+	playPrev: () => void;
+	playNext: () => void;
+	peekNext: () => Song | null;
+	peekPrev: () => Song | null;
 };
 
 const MEDIA_SESSION = 'mediaSession' in navigator;
 const LOADED_INTERVAL_MS = 250;
+const VOLUME_KEY = 'playback.volume';
 
 const formatSeconds = (seconds: number): string => {
 	const minutes = Math.floor(seconds / 60);
@@ -55,44 +63,42 @@ const fileTypeFromMime = (mimeType: string): string => {
 
 export const Playback = ({
 	song,
-	nextSong,
-	prevSong,
+	sources,
+	isRestored,
+	playerStateRef,
+	playNext,
+	playPrev,
+	peekNext,
+	peekPrev,
 }: {
 	song: Song;
-	prevSong: (state: PlayerState) => void;
-	nextSong: (state: PlayerState) => void;
-	peekNext: (state: PlayerState) => Song | null;
-	peekPrev: (state: PlayerState) => Song | null;
-}) => {
-	const { data: sources, error } = useSWR<Source[]>(
-		`/songs/${song.id}/sources`,
-		apiFetcher,
-	);
+	sources: Source[] | undefined;
+	isRestored: boolean;
+	playerStateRef: RefObject<PlayerState>;
+} & SongCallbacks) => {
 	const audioRef = useRef<HTMLAudioElement>(new Audio());
 	const [duration, setDuration] = useState<number | null>(null);
 	const [played, setPlayed] = useState<{ percent: number; seconds: number }>({
 		percent: 0,
-		seconds: 0,
+		seconds: playerStateRef.current.secondsPlayed,
 	});
 	const [buffered, setBuffered] = useState(0);
 	const [playState, setPlayState] = useState<PlayerState['playState']>('none');
-	const [loopState, setLoopState] =
-		useState<PlayerState['loopState']>('loop-song');
+	const [loopState, setLoopState] = useState<PlayerState['loopState']>('loop');
 	const [shuffle, setShuffle] = useState<PlayerState['shuffle']>('none');
-	const [volume, setVolume] = useState<PlayerState['volume']>(1);
-	const [muted, setMuted] = useState<PlayerState['muted']>(false);
-	const [selectedSource, setSelectedSource] = useState<Source | null>(null);
-	// Allow things outside of react to have an accurate view of the player state
-	const playerStateRef = useRef<PlayerState>({
-		playState,
-		loopState,
-		muted,
-		shuffle,
-		volume,
+	const [volume, setVolume] = useLocalStorage<PlayerState['volume']>({
+		key: 'playback.volume',
+		defaultValue: 1,
 	});
+	const [muted, setMuted] = useState<PlayerState['muted']>(false);
+	const songCallbackRefs = useRef<SongCallbacks>({
+		peekNext,
+		peekPrev,
+		playNext,
+		playPrev,
+	});
+	const selectedSource = sources?.[0] ?? null;
 	const theme = useMantineTheme();
-
-	const playerState = (): PlayerState => ({ ...playerStateRef.current });
 
 	const updatePositionState = () => {
 		if (MEDIA_SESSION && !isNaN(audioRef.current.duration)) {
@@ -107,6 +113,7 @@ export const Playback = ({
 	// update player state ref
 	useEffect(() => {
 		playerStateRef.current = {
+			...playerStateRef.current,
 			playState,
 			loopState,
 			muted,
@@ -114,6 +121,14 @@ export const Playback = ({
 			volume,
 		};
 	}, [playState, loopState, shuffle, volume, muted]);
+
+	// update song callbacks for handlers
+	songCallbackRefs.current = {
+		peekNext,
+		peekPrev,
+		playNext,
+		playPrev,
+	};
 
 	const { start: startInterval, stop: stopInterval } = useInterval(() => {
 		const audio = audioRef.current;
@@ -133,6 +148,7 @@ export const Playback = ({
 		}
 
 		setPlayed({ percent: percentPlayed, seconds: amountPlayed });
+		playerStateRef.current.secondsPlayed = amountPlayed;
 	}, LOADED_INTERVAL_MS);
 
 	const togglePlayState = () => {
@@ -186,7 +202,7 @@ export const Playback = ({
 					console.warn('unimplemented stop action');
 					return;
 				case 'nexttrack':
-					nextSong(playerState());
+					songCallbackRefs.current.playNext();
 					return;
 				case 'pause':
 					audioRef.current.pause();
@@ -195,7 +211,7 @@ export const Playback = ({
 					audioRef.current.play();
 					return;
 				case 'previoustrack':
-					prevSong(playerState());
+					songCallbackRefs.current.playPrev();
 					return;
 				case 'seekbackward':
 					audioRef.current.currentTime -= seekOffset ?? 10;
@@ -256,7 +272,7 @@ export const Playback = ({
 		};
 		const onEnd = () => {
 			if (!audioRef.current.loop) {
-				nextSong(playerState());
+				songCallbackRefs.current.playNext();
 			}
 		};
 		const onVolumeChange = () => {
@@ -277,8 +293,10 @@ export const Playback = ({
 
 		audio.loop = loopState === 'loop-song';
 
-		audio.currentTime = 0;
-		audio.volume = volume;
+		audio.currentTime = playerStateRef.current.secondsPlayed;
+		audio.volume = isRestored
+			? Number(localStorage.getItem(VOLUME_KEY) ?? 1)
+			: volume;
 		audio.muted = muted;
 
 		return () => {
@@ -294,12 +312,11 @@ export const Playback = ({
 	}, []);
 
 	// Handle song/source changes
-	useShallowEffect(() => {
+	useEffect(() => {
 		if (!sources || !sources.length) return;
 
 		const audio = audioRef.current;
 		audio.src = `${location.protocol}//${HOST}/api/sources/${sources[0].id}/data`;
-		setSelectedSource(sources[0]);
 		if (MEDIA_SESSION) {
 			navigator.mediaSession.metadata = new MediaMetadata({
 				title: song.title,
@@ -314,13 +331,13 @@ export const Playback = ({
 			});
 		}
 
-		audio.currentTime = 0;
+		audio.currentTime = isRestored ? playerStateRef.current.secondsPlayed : 0;
+		audio.volume = isRestored
+			? Number(localStorage.getItem(VOLUME_KEY) ?? 1)
+			: volume;
+		audio.muted = muted;
 		audio.play();
-	}, [sources]);
-
-	if (error) {
-		console.error(error);
-	}
+	}, [selectedSource?.id]);
 
 	if ((sources && !sources.length) || !selectedSource) {
 		return <Text>No sources to play from</Text>;
@@ -413,7 +430,7 @@ export const Playback = ({
 						onClick={() => {
 							audioRef.current.currentTime = 0;
 						}}
-						onDoubleClick={() => prevSong(playerState())}
+						onDoubleClick={() => playPrev()}
 					>
 						<TbPlayerSkipBackFilled />
 					</ActionIcon>
@@ -426,11 +443,7 @@ export const Playback = ({
 							<TbPlayerPlay size={28} />
 						)}
 					</ActionIcon>
-					<ActionIcon
-						size='xl'
-						radius='xl'
-						onClick={() => nextSong(playerState())}
-					>
+					<ActionIcon size='xl' radius='xl' onClick={() => playNext()}>
 						<TbPlayerSkipForwardFilled />
 					</ActionIcon>
 					<ActionIcon size='xl' radius='xl' onClick={changeLoopState}>

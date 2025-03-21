@@ -3,7 +3,7 @@ use axum_extra::extract::CookieJar;
 use serde::Deserialize;
 
 use crate::{
-    db::{Song, Source, Tag, User},
+    db::{source::SourceWSongId, Song, Source, Tag, User},
     ApiError,
 };
 
@@ -35,6 +35,28 @@ pub async fn get_sources(
 ) -> Result<Json<Vec<Source>>, ApiError> {
     let _user = authenticate(&state, cookies.get(AUTH_COOKIE)).await?;
     Ok(Json(Source::get_all(&state.sqlite).await?))
+}
+
+pub async fn get_all_sources_for_songs(
+    extract::State(state): extract::State<State>,
+    cookies: CookieJar,
+) -> Result<Json<Vec<SourceWSongId>>, ApiError> {
+    let _user = authenticate(&state, cookies.get(AUTH_COOKIE)).await?;
+    Ok(Json(Source::get_all_for_songs(&state.sqlite).await?))
+}
+
+pub async fn delete_song(
+    extract::Path(song_id): extract::Path<i64>,
+    extract::State(state): extract::State<State>,
+    cookies: CookieJar,
+) -> Result<(), ApiError> {
+    let user = authenticate(&state, cookies.get(AUTH_COOKIE)).await?;
+    if !user.admin {
+        return Err(ApiError::Unauthorized)
+    }
+
+    Song::delete_w_sources(song_id, &state.sqlite).await?;
+    Ok(())
 }
 
 pub async fn get_users(

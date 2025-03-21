@@ -24,6 +24,14 @@ pub struct Source {
     pub updated_at: chrono::NaiveDateTime,
 }
 
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SourceWSongId {
+    #[serde(flatten)]
+    source: Source,
+    song_id: i64,
+}
+
 impl Source {
     pub async fn get_all(
         executor: impl Executor<'_, Database = super::DB>,
@@ -32,6 +40,26 @@ impl Source {
             .fetch_all(executor)
             .await
             .map_err(|e| Error::SelectError("sources", e))
+    }
+
+    pub async fn get_all_for_songs(
+        executor: impl Executor<'_, Database = super::DB>,
+    ) -> Result<Vec<SourceWSongId>, Error> {
+        let results = sqlx::query!("SELECT sts.song_id, s.* FROM songs_to_sources sts JOIN sources s ON s.id = sts.source_id").fetch_all(executor).await.map_err(|e| Error::SelectError("songs_to_sources", e))?;
+        Ok(results
+            .into_iter()
+            .map(|r| SourceWSongId {
+                source: Source {
+                    id: r.id,
+                    path: r.path,
+                    mime_type: r.mime_type,
+                    storage_backend_name: r.storage_backend_name,
+                    created_at: r.created_at,
+                    updated_at: r.updated_at,
+                },
+                song_id: r.song_id.unwrap(),
+            })
+            .collect())
     }
 
     pub async fn for_song(

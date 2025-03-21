@@ -91,6 +91,39 @@ impl Song {
         Ok(song_id)
     }
 
+    pub async fn delete_w_sources(id: i64, executor: &Pool<Sqlite>) -> Result<(), Error> {
+        let mut transaction = executor
+            .begin()
+            .await
+            .map_err(|e| Error::TransactionError("songs", e))?;
+
+        sqlx::query!(
+            r#"
+            WITH to_delete AS (
+                SELECT s.id FROM songs_to_sources sts JOIN sources s ON sts.source_id = s.id WHERE sts.song_id = $1
+            )
+            DELETE FROM sources WHERE id in (SELECT id FROM to_delete);
+        "#,
+            id
+        )
+        .execute(&mut *transaction)
+        .await
+        .map_err(|e| Error::DeleteError("sources", e))
+        .map(|_| ())?;
+
+        sqlx::query!("DELETE FROM songs WHERE id = $1", id)
+            .execute(&mut *transaction)
+            .await
+            .map_err(|e| Error::DeleteError("songs", e))?;
+
+        transaction
+            .commit()
+            .await
+            .map_err(|e| Error::TransactionError("songs", e))?;
+
+        Ok(())
+    }
+
     pub async fn add_tag(
         song_id: i64,
         tag: &str,

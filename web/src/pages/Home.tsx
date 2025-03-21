@@ -1,11 +1,14 @@
 import useSWR from 'swr';
-import { apiFetcher } from '../api';
+import { apiFetcher, apiUrl } from '../api';
 import {
+	ActionIcon,
 	Center,
 	Group,
 	Loader,
+	Menu,
 	Paper,
 	Stack,
+	Text,
 	UnstyledButton,
 } from '@mantine/core';
 import { useViewportSize } from '@mantine/hooks';
@@ -15,14 +18,16 @@ import { useTags } from '../utils/tags';
 import { useAuth } from '../utils/useAuth';
 import { Song } from '../types/Song';
 import { usePlayback } from '../components/Playback';
+import { modals } from '@mantine/modals';
+import { TbDots, TbTrash } from 'react-icons/tb';
 
 export const Home = () => {
-	const { data: songs, error } = useSWR<Song[]>('/songs', apiFetcher);
+	const { data: songs, error, mutate } = useSWR<Song[]>('/songs', apiFetcher);
 	const { user } = useAuth();
 	const { tags, error: tagsError } = useTags();
 	const { width } = useViewportSize();
 	const ref = useRef<HTMLDivElement>(null);
-	const { setPlaying } = usePlayback();
+	const { startSession } = usePlayback();
 
 	if (error) {
 		return error.toString();
@@ -40,10 +45,56 @@ export const Home = () => {
 		);
 	}
 
-	const renderedItems = songs.map((song) => (
-		<UnstyledButton key={song.id} onClick={() => setPlaying(song)}>
+	const createDeleteModal = (song: Song) => () =>
+		modals.openConfirmModal({
+			title: `Delete ${song.title}`,
+			centered: true,
+			children: (
+				<Text size='sm'>Are you sure you want to delete this song?</Text>
+			),
+			labels: { confirm: 'Delete', cancel: 'Cancel' },
+			confirmProps: { color: 'red' },
+			onCancel: () => {},
+			onConfirm: async () => {
+				try {
+					const res = await fetch(apiUrl(`/songs/${song.id}`), {
+						method: 'DELETE',
+						credentials: 'include',
+					});
+					if (res.ok) {
+						await mutate();
+						startSession({ songs: [], start: 0 });
+					}
+				} catch (e) {
+					console.error(e);
+				}
+			},
+		});
+
+	const renderedItems = songs.map((song, i) => (
+		<UnstyledButton onClick={() => startSession({ songs, start: i })}>
 			<Paper withBorder shadow='sm' p='sm'>
-				{song.title}
+				<Group wrap='nowrap' justify='space-between'>
+					<Text>{song.title}</Text>
+					{user.admin && (
+						<Menu key={song.id} shadow='md'>
+							<Menu.Target>
+								<ActionIcon size='sm' variant='subtle' onClick={(e) => e.stopPropagation()}>
+									<TbDots />
+								</ActionIcon>
+							</Menu.Target>
+							<Menu.Dropdown onClick={(e) => e.stopPropagation()}>
+								<Menu.Item
+									c='red'
+									leftSection={<TbTrash />}
+									onClick={createDeleteModal(song)}
+								>
+									Delete
+								</Menu.Item>
+							</Menu.Dropdown>
+						</Menu>
+					)}
+				</Group>
 			</Paper>
 		</UnstyledButton>
 	));

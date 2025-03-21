@@ -3,24 +3,40 @@ import {
 	ReactNode,
 	RefObject,
 	useContext,
-	useState,
+	useMemo,
+	useRef,
 } from 'react';
 import { Song } from '../../types/Song';
-import { Playback } from './Playback';
+import { Playback, PlayerState } from './Playback';
+import { useInterval, useLocalStorage } from '@mantine/hooks';
 import useSWR from 'swr';
+import { Source } from '../../types/Source';
 import { apiFetcher } from '../../api';
 
+export type SessionInit = {
+	songs: Song[];
+	start: number;
+};
+
 export type PlayingManagerContext = {
-	setPlaying: (song: Song | null) => void;
+	startSession: (session: SessionInit) => void;
 	playing: Song | null;
+};
+
+const shuffleArray = <T extends unknown>(array: T[]): T[] => {
+	for (let i = array.length - 1; i > 0; i--) {
+		const j = Math.floor(Math.random() * (i + 1));
+		[array[i], array[j]] = [array[j], array[i]]; // Swap elements
+	}
+	return array;
 };
 
 const playbackContext = createContext<{
 	playing: () => Song | null;
-	setPlaying: (song: Song | null) => void;
+	startSession: (session: SessionInit) => void;
 }>({
 	playing: () => null,
-	setPlaying: (_) => console.log('default setPlaying unreachable'),
+	startSession: (_) => console.log('default setPlaying unreachable'),
 });
 
 export const usePlayback = () => useContext(playbackContext);
@@ -36,7 +52,8 @@ export const PlaybackManagerProvider = ({
 		<playbackContext.Provider
 			value={{
 				playing: () => ref.current.playing,
-				setPlaying: (song: Song | null) => ref.current.setPlaying(song),
+				startSession: (session: SessionInit) =>
+					ref.current.startSession(session),
 			}}
 		>
 			{children}
@@ -49,60 +66,89 @@ export const PlaybackManager = ({
 }: {
 	ref: RefObject<PlayingManagerContext>;
 }) => {
-	const { data: songs } = useSWR<Song[]>('/songs', apiFetcher);
-	const [song, setSong] = useState<Song | null>(null);
-	ref.current.setPlaying = setSong;
+	const [songs, setSongs] = useLocalStorage<Song[]>({
+		key: 'session.songs',
+		defaultValue: [],
+		serialize: JSON.stringify,
+		deserialize: (v) => JSON.parse(v ?? '[]'),
+	});
+	const [playing, setPlaying] = useLocalStorage({
+		key: 'session.playing',
+		defaultValue: 0,
+	});
+	const song: Song | null = songs[playing] ?? null;
+	const { data: allSources } = useSWR<(Source & { songId: number })[]>(
+		'/songs/sources',
+		apiFetcher,
+	);
+	const playerStateRef = useRef<PlayerState>({
+		playState: 'none',
+		loopState: 'loop',
+		muted: false,
+		shuffle: 'none',
+		volume: 1,
+		secondsPlayed: Number(localStorage.getItem('player.secondsPlayed')),
+	});
+	const isRestored = useRef(true);
+
+	ref.current.startSession = (session) => {
+		setSongs(session.songs);
+		setPlaying(Math.max(Math.min(session.songs.length - 1, session.start), 0));
+		isRestored.current = false;
+	};
 	ref.current.playing = song;
 
-	if (!songs || !songs.length || !song) {
+	useInterval(
+		() => {
+			localStorage.setItem(
+				'player.secondsPlayed',
+				playerStateRef.current.secondsPlayed.toString(),
+			);
+		},
+		1000,
+		{ autoInvoke: true },
+	);
+	const normalIndices = useMemo(() => Array.from(songs.keys()), [songs]);
+	const shuffledIndices = useMemo(
+		() => shuffleArray(Array.from(songs.keys())),
+		[songs],
+	);
+
+	if (!songs.length || !song || !allSources) {
 		return null;
 	}
+
+	const playerState = playerStateRef.current;
+	const nextIndex = (shuffle: boolean) => {
+		const source = shuffle ? shuffledIndices : normalIndices;
+		return source[(playing + 1) % source.length];
+	};
+
+	const prevIndex = (shuffle: boolean) => {
+		const source = shuffle ? shuffledIndices : normalIndices;
+		return source[playing - 1 < 0 ? source.length - 1 : playing - 1];
+	};
 
 	return (
 		<div>
 			<Playback
 				song={song}
-				nextSong={(state) => {
-					if (!ref.current.playing) return;
-					if (state.shuffle !== 'shuffle') {
-						const songIdx = songs.findIndex(
-							(s) => s.id === ref.current.playing!.id,
-						);
-						const nextSong =
-							songs[songIdx + 1 >= songs.length ? 0 : songIdx + 1];
-						setSong(nextSong);
-						return;
-					}
-
-					setSong(songs[Math.floor(Math.random() * songs.length)]);
+				isRestored={isRestored.current}
+				sources={allSources.filter((s) => s.songId === song.id)}
+				playerStateRef={playerStateRef}
+				playNext={() => {
+					isRestored.current = false;
+					setPlaying(nextIndex(playerState.shuffle === 'shuffle'));
 				}}
-				prevSong={(state) => {
-					if (!ref.current.playing) return;
-					if (state.shuffle !== 'shuffle') {
-						const songIdx = songs.findIndex(
-							(s) => s.id === ref.current.playing!.id,
-						);
-						const prevSong =
-							songs[songIdx - 1 < 0 ? songs.length - 1 : songIdx - 1];
-						setSong(prevSong);
-						return;
-					}
-
-					setSong(songs[Math.floor(Math.random() * songs.length)]);
+				playPrev={() => {
+					isRestored.current = false;
+					setPlaying(prevIndex(playerState.shuffle === 'shuffle'));
 				}}
 				peekNext={() => {
-					if (!ref.current.playing) return null;
-					const songIdx = songs.findIndex(
-						(s) => s.id === ref.current.playing!.id,
-					);
-					return songs[songIdx + 1 >= songs.length ? 0 : songIdx + 1]!;
+					return songs[nextIndex(playerState.shuffle === 'shuffle')];
 				}}
 				peekPrev={() => {
-					if (!ref.current.playing) return null;
-					const songIdx = songs.findIndex(
-						(s) => s.id === ref.current.playing!.id,
-					);
-					return songs[songIdx - 1 < 0 ? songs.length - 1 : songIdx - 1];
+					return songs[prevIndex(playerState.shuffle === 'shuffle')];
 				}}
 			/>
 		</div>
