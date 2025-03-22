@@ -62,9 +62,6 @@ pub struct S3Config {
     pub region: Arc<str>,
 
     pub bucket: Arc<str>,
-
-    #[serde(default)]
-    pub disable_config_load: bool,
 }
 
 impl DBStorageBackend {
@@ -88,15 +85,12 @@ impl StorageBackendConfig {
                     .finish()
             }
             StorageBackendConfig::S3(s3_config) => Operator::new({
-                let mut builder = opendal::services::S3::default()
+                let builder = opendal::services::S3::default()
                     .access_key_id(&s3_config.access_key_id)
                     .secret_access_key(&s3_config.secret_access_key)
                     .region(&s3_config.region)
-                    .bucket(&s3_config.bucket);
-
-                if s3_config.disable_config_load {
-                    builder = builder.disable_config_load()
-                }
+                    .bucket(&s3_config.bucket)
+                    .disable_config_load();
 
                 builder
             })

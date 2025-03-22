@@ -16,6 +16,9 @@ To deploy this, you need to at least set the following in config, other config o
     "init_storage_backend": {
         // You can also use fs instead of s3
         "s3": {
+            // These must be provided, or else presigning won't work correctly
+            "access_key_id": "",
+            "secret_access_key": "",
             "bucket": "bucket",
             "region": "us-west-1"
         }
