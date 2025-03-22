@@ -51,8 +51,8 @@ pub struct GetSourceRequest {
     pub headers: http::HeaderMap,
 }
 
-/// 3 days
-const REQ_VALID_FOR: Duration = Duration::from_secs(3 * 24 * 60 * 60);
+/// 2 hours
+const REQ_VALID_FOR: Duration = Duration::from_secs(2 * 60 * 60);
 static REQUESTS_CACHE: LazyLock<RwLock<FxHashMap<i64, (Instant, Arc<GetSourceRequest>)>>> =
     LazyLock::new(|| RwLock::new(Default::default()));
 

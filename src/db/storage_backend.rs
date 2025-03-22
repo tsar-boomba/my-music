@@ -53,10 +53,8 @@ pub struct FsConfig {
 #[derive(Debug, Serialize, Deserialize, ts_rs::TS)]
 #[ts(export, export_to = "../web/src/types/S3Config.ts")]
 pub struct S3Config {
-    #[serde(default)]
     pub access_key_id: Arc<str>,
 
-    #[serde(default)]
     pub secret_access_key: Arc<str>,
 
     pub region: Arc<str>,
