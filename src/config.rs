@@ -61,7 +61,7 @@ fn default_env_filter() -> Arc<str> {
     if cfg!(debug_assertions) {
         Arc::from("info,my_music=debug,axum=debug,axum-core=debug,tower_http=debug")
     } else {
-        Arc::from("info,my_music=debug")
+        Arc::from("info,my_music=debug,tower_http=debug")
     }
 }
 

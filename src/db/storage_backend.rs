@@ -83,6 +83,10 @@ impl StorageBackendConfig {
                     .finish()
             }
             StorageBackendConfig::S3(s3_config) => Operator::new({
+                tracing::info!(
+                    "Creating S3 operator with access_key_id: {}",
+                    s3_config.access_key_id
+                );
                 let builder = opendal::services::S3::default()
                     .access_key_id(&s3_config.access_key_id)
                     .secret_access_key(&s3_config.secret_access_key)
@@ -150,6 +154,23 @@ impl StorageBackend {
         .map(|_| ())
     }
 
+    pub async fn update_config(
+        name: &str,
+        config: &StorageBackendConfig,
+        executor: impl Executor<'_, Database = super::DB>,
+    ) -> Result<(), Error> {
+        let config_str = serde_json::to_string(config).unwrap();
+        sqlx::query!(
+            "UPDATE storage_backends SET config = $1 WHERE name = $2",
+            config_str,
+            name
+        )
+        .execute(executor)
+        .await
+        .map_err(|e| Error::UpdateError("storage_backends", e))
+        .map(|_| ())
+    }
+
     pub async fn operator_by_name(
         name: &str,
         executor: impl Executor<'_, Database = super::DB>,
@@ -167,10 +188,12 @@ impl StorageBackend {
 
         // Use cached operator if it exists
         if let Some(operator) = operators.read().await.get(&self.name).cloned() {
+            tracing::debug!("Using cached operator for {}", self.name);
             return Ok(operator);
         }
 
         // Create new operator for backend
+        tracing::info!("Creating new operator for {}", self.name);
         let new_operator = self.config.operator()?;
         operators
             .write()

@@ -51,8 +51,8 @@ pub struct GetSourceRequest {
     pub headers: http::HeaderMap,
 }
 
-/// 2 hours
-const REQ_VALID_FOR: Duration = Duration::from_secs(2 * 60 * 60);
+/// 6 days
+const REQ_VALID_FOR: Duration = Duration::from_secs(6 * 24 * 60 * 60);
 static REQUESTS_CACHE: LazyLock<RwLock<FxHashMap<i64, (Instant, Arc<GetSourceRequest>)>>> =
     LazyLock::new(|| RwLock::new(Default::default()));
 
@@ -145,7 +145,7 @@ impl Source {
         let req = if operator.info().full_capability().presign_read {
             match operator
                 // Actually expire later than the cache, to mitigate risk of returning an invalid url from cache
-                .presign_read_with(&self.path, REQ_VALID_FOR + Duration::from_secs(1 * 60 * 60))
+                .presign_read_with(&self.path, REQ_VALID_FOR + Duration::from_secs((24 * 60 * 60) - 1))
                 .override_content_type(&self.mime_type)
                 .override_cache_control(&format!(
                     "private, max-age={}, immutable",

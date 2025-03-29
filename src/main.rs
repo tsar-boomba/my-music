@@ -67,6 +67,7 @@ async fn server(config: Config) -> color_eyre::Result<()> {
     let sqlite = sqlx::SqlitePool::connect_with(sqlite_options).await?;
     sqlx::migrate!().run(&sqlite).await?;
     StorageBackend::try_insert_new("init", &config.init_storage_backend, &sqlite).await?;
+    StorageBackend::update_config("init", &config.init_storage_backend, &sqlite).await?;
     User::try_insert_new(&config.init_username, &config.init_password, true, &sqlite).await?;
 
     let base_path = config.domain.path().trim_end_matches("/");
