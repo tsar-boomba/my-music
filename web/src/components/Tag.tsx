@@ -24,7 +24,7 @@ export const Tag = ({
 			c={tag.textColor ?? undefined}
 			style={{
 				textTransform: 'uppercase',
-				border: tag.borderColor ? `1px solid ${tag.borderColor}` : undefined,
+				border: tag.borderColor ? `1px solid ${tag.borderColor}` : '1px solid var(--mantine-color-gray-8)',
 			}}
 			withRemoveButton={!!onRemove}
 			onRemove={onRemove}

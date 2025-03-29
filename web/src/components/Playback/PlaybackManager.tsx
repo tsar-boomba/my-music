@@ -143,7 +143,7 @@ export const PlaybackManager = ({
 	return (
 		<div>
 			<Playback
-				song={song}
+				song={{ ...song, tags }}
 				isRestored={isRestored.current}
 				albums={allAlbums.filter((a) => tags.includes(a.title))}
 				sources={allSources.filter((s) => s.songId === song.id)}

@@ -104,10 +104,9 @@ pub async fn try_populate_album_covers(
         let cover_image_mime_type = &*album_cover.mime_type;
         let cover_image_path = format!(
             "images/{}.{}",
-            album.title,
+            album.title.replace("/", "~slash~"),
             cover_image_mime_type.split_once("/").unwrap().1
-        )
-        .replace("/", "~slash~");
+        );
         let write_image_res = operator.write(&cover_image_path, album_cover.data).await;
         if let Err(err) = write_image_res {
             tracing::error!("Error writing album cover to backend: {err:?}");

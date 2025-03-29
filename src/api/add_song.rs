@@ -196,11 +196,10 @@ async fn add_song(
     let operator = storage_backend.operator().await?;
     let path = format!(
         "songs/{}-{}.{}",
-        final_meta.title,
+        final_meta.title.replace("/", "~slash~"),
         chrono::Utc::now().timestamp(),
         mime_type.split_once("/").unwrap().1
-    )
-    .replace("/", "~slash~");
+    );
 
     // Write to storage backend first since its waaaaaay more likely to fail
     let _ = operator.write(&path, song_data).await?;
@@ -222,10 +221,9 @@ async fn add_song(
             let cover_image_mime_type = &*album_cover.mime_type;
             let cover_image_path = format!(
                 "images/{}.{}",
-                album_title,
+                album_title.replace("/", "~slash~"),
                 cover_image_mime_type.split_once("/").unwrap().1
-            )
-            .replace("/", "~slash~");
+            );
             let write_image_res = operator.write(&cover_image_path, album_cover.data).await;
             if let Err(err) = write_image_res {
                 Err(db::Error::InsertError(

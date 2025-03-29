@@ -1,4 +1,4 @@
-import { apiUrl } from '../api';
+import { apiFetcher, apiUrl } from '../api';
 import {
 	ActionIcon,
 	Center,
@@ -19,11 +19,18 @@ import { Song } from '../types/Song';
 import { usePlayback } from '../components/Playback';
 import { modals } from '@mantine/modals';
 import { TbDots, TbTrash } from 'react-icons/tb';
+import { openSongDetailModal } from '../components/SongDetailModal/SongDetailModal';
+import useSWR from 'swr';
+import { AlbumSource } from '../components/Playback/Playback';
 
 export const Home = () => {
 	const { songsArray: songs, error, mutate } = useSongs();
 	const { user } = useAuth();
 	const { tags, error: tagsError } = useTags();
+	const { data: albums, error: albumsError } = useSWR<AlbumSource[]>(
+		'/albums/sources',
+		apiFetcher,
+	);
 	const { width } = useViewportSize();
 	const ref = useRef<HTMLDivElement>(null);
 	const { startSession } = usePlayback();
@@ -36,7 +43,11 @@ export const Home = () => {
 		return tagsError.toString();
 	}
 
-	if (!songs || !tags || !user) {
+	if (albumsError) {
+		return albumsError.toString();
+	}
+
+	if (!songs || !tags || !user || !albums) {
 		return (
 			<Center>
 				<Loader size='xl' />
@@ -70,40 +81,49 @@ export const Home = () => {
 			},
 		});
 
-	const renderedItems = songs.map((song, i) => (
-		<UnstyledButton
-			key={song.id}
-			onClick={() => startSession({ songs, start: i })}
-		>
-			<Paper withBorder shadow='sm' p='sm'>
-				<Group wrap='nowrap' justify='space-between'>
-					<Text>{song.title}</Text>
-					{user.admin && (
-						<Menu shadow='md'>
-							<Menu.Target>
-								<ActionIcon
-									size='sm'
-									variant='subtle'
-									onClick={(e) => e.stopPropagation()}
-								>
-									<TbDots />
-								</ActionIcon>
-							</Menu.Target>
-							<Menu.Dropdown onClick={(e) => e.stopPropagation()}>
-								<Menu.Item
-									c='red'
-									leftSection={<TbTrash />}
-									onClick={createDeleteModal(song)}
-								>
-									Delete
-								</Menu.Item>
-							</Menu.Dropdown>
-						</Menu>
-					)}
-				</Group>
-			</Paper>
-		</UnstyledButton>
-	));
+	const renderedItems = songs.map((song, i) => {
+		const album = albums?.filter((a) => song.tags.includes(a.title))?.[0];
+		return (
+			<UnstyledButton
+				key={song.id}
+				onClick={() => startSession({ songs, start: i })}
+			>
+				<Paper withBorder shadow='sm' p='sm'>
+					<Group wrap='nowrap' justify='space-between'>
+						<Text>{song.title}</Text>
+						{user.admin && (
+							<Menu shadow='md'>
+								<Menu.Target>
+									<ActionIcon
+										size='sm'
+										variant='subtle'
+										onClick={(e) => e.stopPropagation()}
+									>
+										<TbDots />
+									</ActionIcon>
+								</Menu.Target>
+								<Menu.Dropdown onClick={(e) => e.stopPropagation()}>
+									<Menu.Item
+										leftSection={<TbDots />}
+										onClick={() => openSongDetailModal({ song, album })}
+									>
+										Details
+									</Menu.Item>
+									<Menu.Item
+										c='red'
+										leftSection={<TbTrash />}
+										onClick={createDeleteModal(song)}
+									>
+										Delete
+									</Menu.Item>
+								</Menu.Dropdown>
+							</Menu>
+						)}
+					</Group>
+				</Paper>
+			</UnstyledButton>
+		);
+	});
 
 	if (width <= MOBILE_WIDTH) {
 		return (

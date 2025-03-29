@@ -38,7 +38,7 @@ impl Artist {
                 .map_err(|e| Error::InsertError("sources", e))?;
 
             sqlx::query!(
-                "INSERT OR IGNORE INTO tags(name, album_id) VALUES ($1, $2)",
+                "INSERT OR IGNORE INTO tags(name, artist_id) VALUES ($1, $2)",
                 artist,
                 artist
             )

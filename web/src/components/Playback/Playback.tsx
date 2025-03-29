@@ -26,7 +26,8 @@ import {
 	TbRepeatOnce,
 } from 'react-icons/tb';
 import { useInterval, useLocalStorage } from '@mantine/hooks';
-import { ImageWithFallback } from './ImageWFallback';
+import { AlbumCover } from './AlbumCover';
+import { SongWTags } from '../../utils/maps';
 
 export type PlayerState = {
 	loopState: 'loop' | 'loop-song';
@@ -61,6 +62,14 @@ type SongCallbacks = {
 	peekPrev: () => Song | null;
 };
 
+type Props = {
+	song: SongWTags;
+	albums: AlbumSource[] | undefined;
+	sources: SongSource[] | undefined;
+	isRestored: boolean;
+	playerStateRef: RefObject<PlayerState>;
+} & SongCallbacks;
+
 const MEDIA_SESSION = 'mediaSession' in navigator;
 const LOADED_INTERVAL_MS = 250;
 const VOLUME_KEY = 'playback.volume';
@@ -81,7 +90,7 @@ const fileTypeFromMime = (mimeType: string): string => {
 	return fileType;
 };
 
-const uriForSource = (source: { request: GetSourceRequest }) => {
+export const uriForSource = (source: { request: GetSourceRequest }) => {
 	const uri = source.request.uri;
 	const localUri = uri.startsWith('/');
 	return localUri ? `${location.protocol}//${HOST}${uri}` : uri;
@@ -97,13 +106,7 @@ export const Playback = ({
 	playPrev,
 	peekNext,
 	peekPrev,
-}: {
-	song: Song;
-	albums: AlbumSource[] | undefined;
-	sources: SongSource[] | undefined;
-	isRestored: boolean;
-	playerStateRef: RefObject<PlayerState>;
-} & SongCallbacks) => {
+}: Props) => {
 	const audioRef = useRef<HTMLAudioElement>(new Audio());
 	const [duration, setDuration] = useState<number | null>(null);
 	const [played, setPlayed] = useState<{ percent: number; seconds: number }>({
@@ -379,9 +382,10 @@ export const Playback = ({
 		<Box className={classes.base}>
 			<Stack gap='xs' align='stretch'>
 				<Group wrap='nowrap' align='center'>
-					<ImageWithFallback
-						src={album ? uriForSource(album) : undefined}
-						alt='Album Cover'
+					<AlbumCover
+						song={song}
+						album={album}
+						canOpenModal
 					/>
 					<Stack gap='xs' flex='1' style={{ overflow: 'hidden' }}>
 						<Group gap='xs' align='center' wrap='nowrap'>

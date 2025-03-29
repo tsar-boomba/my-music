@@ -11,7 +11,8 @@ import { Login } from './pages/Login.tsx';
 preload('/check-auth', apiFetcher);
 preload('/tags', apiFetcher);
 preload('/sources', apiFetcher);
-preload('/songs', apiFetcher);
+preload('/songs/sources', apiFetcher);
+preload('/albums/sources', apiFetcher);
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
 	<React.StrictMode>
