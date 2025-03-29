@@ -1,6 +1,6 @@
 import { ReactNode, useCallback } from 'react';
 import Header from './Header';
-import { ActionIcon, Affix, Box, Group, Stack } from '@mantine/core';
+import { ActionIcon, Box, Group, Stack } from '@mantine/core';
 import { useAuth } from '../../utils/useAuth';
 import { TbPlus } from 'react-icons/tb';
 import { openModal } from '@mantine/modals';
@@ -43,7 +43,13 @@ export const DesktopLayout = ({
 				}
 			/>
 			{children}
-			<Affix bottom={0} left={0} right={0}>
+			<Box
+				pos='sticky'
+				bottom={0}
+				left={0}
+				right={0}
+				style={{ pointerEvents: 'none', zIndex: 1 }}
+			>
 				<Stack gap={0}>
 					<Group
 						justify='flex-end'
@@ -65,7 +71,7 @@ export const DesktopLayout = ({
 					</Group>
 					{playbackManager}
 				</Stack>
-			</Affix>
+			</Box>
 		</Box>
 	);
 };
