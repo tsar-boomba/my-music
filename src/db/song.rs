@@ -24,8 +24,8 @@ pub struct Song {
 pub struct SongWTags {
     #[serde(flatten)]
     #[sqlx(flatten)]
-    pub item: Song,
-    pub tags: Option<String>,
+    pub song: Song,
+    pub tags: Vec<String>,
 }
 
 impl Song {
@@ -36,6 +36,43 @@ impl Song {
             .fetch_all(executor)
             .await
             .map_err(|e| Error::SelectError("songs", e))
+    }
+
+    pub async fn get_all_with_tags(
+        executor: impl Executor<'_, Database = super::DB>,
+    ) -> Result<Vec<SongWTags>, Error> {
+        let records = sqlx::query!(
+            r#"
+            SELECT s.*, GROUP_CONCAT(t.name, '}@+${') AS tags
+            FROM songs s
+            LEFT JOIN songs_to_tags stt ON s.id = stt.song_id
+            LEFT JOIN tags t ON stt.tag_id = t.name
+            GROUP BY s.id
+            "#,
+        )
+        .fetch_all(executor)
+        .await
+        .map_err(|e| Error::SelectError("songs", e))?;
+
+        Ok(records
+            .into_iter()
+            .map(|r| SongWTags {
+                song: Song {
+                    id: r.id,
+                    title: r.title,
+                    created_at: r.created_at,
+                    updated_at: r.updated_at,
+                },
+                tags: r
+                    .tags
+                    .map(|tags| {
+                        tags.split("}@+${")
+                            .map(ToString::to_string)
+                            .collect::<Vec<String>>()
+                    })
+                    .unwrap_or_default(),
+            })
+            .collect())
     }
 
     pub async fn get_by_id(

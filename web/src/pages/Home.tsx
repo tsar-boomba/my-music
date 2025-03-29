@@ -1,5 +1,4 @@
-import useSWR from 'swr';
-import { apiFetcher, apiUrl } from '../api';
+import { apiUrl } from '../api';
 import {
 	ActionIcon,
 	Center,
@@ -14,7 +13,7 @@ import {
 import { useViewportSize } from '@mantine/hooks';
 import { MOBILE_WIDTH } from '../components/Layout';
 import { useRef } from 'react';
-import { useTags } from '../utils/tags';
+import { useSongs, useTags } from '../utils/maps';
 import { useAuth } from '../utils/useAuth';
 import { Song } from '../types/Song';
 import { usePlayback } from '../components/Playback';
@@ -22,7 +21,7 @@ import { modals } from '@mantine/modals';
 import { TbDots, TbTrash } from 'react-icons/tb';
 
 export const Home = () => {
-	const { data: songs, error, mutate } = useSWR<Song[]>('/songs', apiFetcher);
+	const { songsArray: songs, error, mutate } = useSongs();
 	const { user } = useAuth();
 	const { tags, error: tagsError } = useTags();
 	const { width } = useViewportSize();
@@ -72,14 +71,21 @@ export const Home = () => {
 		});
 
 	const renderedItems = songs.map((song, i) => (
-		<UnstyledButton key={song.id} onClick={() => startSession({ songs, start: i })}>
+		<UnstyledButton
+			key={song.id}
+			onClick={() => startSession({ songs, start: i })}
+		>
 			<Paper withBorder shadow='sm' p='sm'>
 				<Group wrap='nowrap' justify='space-between'>
 					<Text>{song.title}</Text>
 					{user.admin && (
 						<Menu shadow='md'>
 							<Menu.Target>
-								<ActionIcon size='sm' variant='subtle' onClick={(e) => e.stopPropagation()}>
+								<ActionIcon
+									size='sm'
+									variant='subtle'
+									onClick={(e) => e.stopPropagation()}
+								>
 									<TbDots />
 								</ActionIcon>
 							</Menu.Target>

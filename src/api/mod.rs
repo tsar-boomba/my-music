@@ -1,6 +1,7 @@
 pub mod add_song;
 mod auth;
 mod crud;
+pub mod audio;
 
 use std::{
     ops::{Bound, RangeBounds},
@@ -43,6 +44,8 @@ pub fn api_router(config: Arc<Config>, sqlite: Pool<Sqlite>) -> color_eyre::Resu
         .route("/songs/{id}", delete(crud::delete_song))
         .route("/songs/{id}/sources", get(crud::get_sources_for_song))
         .route("/songs/sources", get(crud::get_all_sources_for_songs))
+        .route("/albums/sources", get(crud::get_all_sources_for_albums))
+        .route("/albums/populate-covers", get(audio::try_populate_album_covers))
         .route("/sources", get(crud::get_sources))
         .route("/sources/{id}/data", get(get_source))
         .route("/users", get(crud::get_users).post(crud::create_user))

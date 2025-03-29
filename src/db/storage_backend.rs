@@ -99,6 +99,7 @@ impl StorageBackendConfig {
             .unwrap()
             .finish(),
         }
+        .layer(opendal::layers::RetryLayer::new())
         .layer(opendal::layers::TracingLayer))
     }
 }

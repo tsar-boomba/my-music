@@ -1,5 +1,5 @@
 import { Button, Center, Group, Loader, Stack, TextInput } from '@mantine/core';
-import { useTags } from '../../utils/tags';
+import { useTags } from '../../utils/maps';
 import { Tag } from '../Tag';
 import { TbPlus } from 'react-icons/tb';
 import { useState } from 'react';
@@ -40,6 +40,9 @@ export const Tags = () => {
 
 	return (
 		<Stack align='center'>
+			<Button onClick={() => fetch(apiUrl('/albums/populate-covers'), { credentials: 'include' })}>
+				Populate Covers
+			</Button>
 			<Stack
 				component='form'
 				onSubmit={handleSubmit(
@@ -99,9 +102,7 @@ export const Tags = () => {
 							onClick={() =>
 								openModal({
 									title: `Update ${tag.name}`,
-									children: (
-										<EditTagModal tag={tag} mutate={mutate} />
-									),
+									children: <EditTagModal tag={tag} mutate={mutate} />,
 								})
 							}
 						/>

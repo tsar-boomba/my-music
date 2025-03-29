@@ -11,7 +11,7 @@ use tokio::sync::RwLock;
 use super::{Error, StorageBackend};
 
 /// Some kind of binary data in the storage backend
-#[derive(Debug, FromRow, Serialize, Deserialize, ts_rs::TS)]
+#[derive(Debug, Clone, FromRow, Serialize, Deserialize, ts_rs::TS)]
 #[ts(export, export_to = "../web/src/types/Source.ts")]
 #[serde(rename_all = "camelCase")]
 pub struct Source {
@@ -38,6 +38,16 @@ pub struct SongSource {
     source: Source,
     song_id: i64,
     request: Arc<GetSourceRequest>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AlbumSource {
+    #[serde(flatten)]
+    pub source: Source,
+    pub title: String,
+    pub link: Option<String>,
+    pub request: Arc<GetSourceRequest>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -86,6 +96,34 @@ impl Source {
             results_w_reqs.push(SongSource {
                 request: source.get_req(executor).await?,
                 song_id: record.song_id.unwrap(),
+                source,
+            });
+        }
+
+        Ok(results_w_reqs)
+    }
+
+    pub async fn get_all_for_albums(
+        executor: impl Executor<'_, Database = super::DB> + Copy,
+    ) -> Result<Vec<AlbumSource>, Error> {
+        let results = sqlx::query!("SELECT a.title, a.link, s.* FROM albums a JOIN sources s ON a.cover_image_source_id = s.id").fetch_all(executor).await.map_err(|e| Error::SelectError("songs_to_sources", e))?;
+        let mut results_w_reqs = Vec::with_capacity(results.len());
+
+        // TODO: Consider parallelization for when lots of sources
+        for record in results {
+            let source = Source {
+                id: record.id,
+                path: record.path,
+                mime_type: record.mime_type,
+                storage_backend_name: record.storage_backend_name,
+                created_at: record.created_at,
+                updated_at: record.updated_at,
+            };
+
+            results_w_reqs.push(AlbumSource {
+                request: source.get_req(executor).await?,
+                title: record.title,
+                link: record.link,
                 source,
             });
         }

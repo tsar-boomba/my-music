@@ -7,10 +7,11 @@ import {
 	useRef,
 } from 'react';
 import { Song } from '../../types/Song';
-import { Playback, PlayerState, SongSource } from './Playback';
+import { AlbumSource, Playback, PlayerState, SongSource } from './Playback';
 import { useInterval, useLocalStorage } from '@mantine/hooks';
 import useSWR from 'swr';
 import { apiFetcher } from '../../api';
+import { useSongs } from '../../utils/maps';
 
 export type SessionInit = {
 	songs: Song[];
@@ -76,8 +77,13 @@ export const PlaybackManager = ({
 		defaultValue: 0,
 	});
 	const song: Song | null = songs[playing] ?? null;
+	const { songs: allSongs } = useSongs();
 	const { data: allSources } = useSWR<SongSource[]>(
 		'/songs/sources',
+		apiFetcher,
+	);
+	const { data: allAlbums } = useSWR<AlbumSource[]>(
+		'/albums/sources',
 		apiFetcher,
 	);
 	const playerStateRef = useRef<PlayerState>({
@@ -113,7 +119,13 @@ export const PlaybackManager = ({
 		[songs],
 	);
 
-	if (!songs.length || !song || !allSources) {
+	if (!songs.length || !song || !allSongs || !allSources || !allAlbums) {
+		return null;
+	}
+
+	const tags = allSongs.get(song.id)?.tags;
+
+	if (!tags) {
 		return null;
 	}
 
@@ -133,6 +145,7 @@ export const PlaybackManager = ({
 			<Playback
 				song={song}
 				isRestored={isRestored.current}
+				albums={allAlbums.filter((a) => tags.includes(a.title))}
 				sources={allSources.filter((s) => s.songId === song.id)}
 				playerStateRef={playerStateRef}
 				playNext={() => {

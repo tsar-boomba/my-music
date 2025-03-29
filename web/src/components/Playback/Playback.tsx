@@ -26,6 +26,7 @@ import {
 	TbRepeatOnce,
 } from 'react-icons/tb';
 import { useInterval, useLocalStorage } from '@mantine/hooks';
+import { ImageWithFallback } from './ImageWFallback';
 
 export type PlayerState = {
 	loopState: 'loop' | 'loop-song';
@@ -36,13 +37,21 @@ export type PlayerState = {
 	secondsPlayed: number;
 };
 
+type GetSourceRequest = {
+	method: string;
+	uri: string;
+	headers: Record<string, string>;
+};
+
 export type SongSource = Source & {
 	songId: number;
-	request: {
-		method: string;
-		uri: string;
-		headers: Record<string, string>;
-	};
+	request: GetSourceRequest;
+};
+
+export type AlbumSource = Source & {
+	title: string;
+	link: string | null;
+	request: GetSourceRequest;
 };
 
 type SongCallbacks = {
@@ -55,6 +64,8 @@ type SongCallbacks = {
 const MEDIA_SESSION = 'mediaSession' in navigator;
 const LOADED_INTERVAL_MS = 250;
 const VOLUME_KEY = 'playback.volume';
+const DEFAULT_MEDIA_SESSION_IMAGE =
+	'data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💣</text></svg>';
 
 const formatSeconds = (seconds: number): string => {
 	const minutes = Math.floor(seconds / 60);
@@ -70,7 +81,7 @@ const fileTypeFromMime = (mimeType: string): string => {
 	return fileType;
 };
 
-const uriForSource = (source: SongSource) => {
+const uriForSource = (source: { request: GetSourceRequest }) => {
 	const uri = source.request.uri;
 	const localUri = uri.startsWith('/');
 	return localUri ? `${location.protocol}//${HOST}${uri}` : uri;
@@ -78,6 +89,7 @@ const uriForSource = (source: SongSource) => {
 
 export const Playback = ({
 	song,
+	albums,
 	sources,
 	isRestored,
 	playerStateRef,
@@ -87,6 +99,7 @@ export const Playback = ({
 	peekPrev,
 }: {
 	song: Song;
+	albums: AlbumSource[] | undefined;
 	sources: SongSource[] | undefined;
 	isRestored: boolean;
 	playerStateRef: RefObject<PlayerState>;
@@ -114,6 +127,7 @@ export const Playback = ({
 	});
 	const selectedSource = sources?.[0] ?? null;
 	const theme = useMantineTheme();
+	const album = albums?.[0];
 
 	const updatePositionState = () => {
 		if (MEDIA_SESSION && !isNaN(audioRef.current.duration)) {
@@ -158,8 +172,7 @@ export const Playback = ({
 		const percentPlayed = (amountPlayed / duration) * 100;
 		if (audio.buffered.length) {
 			const amountBuffered =
-				audio.buffered.end(audio.buffered.length - 1) -
-				audio.buffered.start(0);
+				audio.buffered.end(audio.buffered.length - 1) - audio.buffered.start(0);
 			const percentBuffered = (amountBuffered / duration) * 100;
 			setBuffered(percentBuffered - percentPlayed);
 		}
@@ -342,7 +355,7 @@ export const Playback = ({
 				artist: `Ibomb's Music`,
 				artwork: [
 					{
-						src: 'data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💣</text></svg>',
+						src: album ? uriForSource(album) : DEFAULT_MEDIA_SESSION_IMAGE,
 						type: 'image/svg+xml',
 					},
 				],
@@ -365,79 +378,93 @@ export const Playback = ({
 	return (
 		<Box className={classes.base}>
 			<Stack gap='xs' align='stretch'>
-				<Group gap='xs' align='center' wrap='nowrap'>
-					<Badge variant='light' styles={{ label: { overflow: 'visible' } }}>
-						{fileTypeFromMime(selectedSource.mimeType)}
-					</Badge>
-					<Text
-						size='lg'
-						fw={600}
-						ta='left'
-						style={{
-							whiteSpace: 'nowrap',
-							overflow: 'hidden',
-							textOverflow: 'ellipsis',
-						}}
-					>
-						{song.title}
-					</Text>
-				</Group>
-				<Group align='center' justify='center' gap='xs'>
-					<Text w={48} ta='right' c='dimmed' size='sm'>
-						{formatSeconds(played.seconds)}
-					</Text>
-					<div style={{ flexGrow: 1 }}>
-						<Progress.Root
-							style={{ cursor: duration ? 'pointer' : undefined }}
-							onClick={(e) => {
-								if (!duration) return;
-								const { x: barX, width: barWidth } =
-									e.currentTarget.getBoundingClientRect();
-								const posInBar = e.clientX - barX;
-								const percentOfBar = clamp(posInBar / barWidth, 0, 1);
-								audioRef.current.currentTime = duration * percentOfBar;
-							}}
-							transitionDuration={LOADED_INTERVAL_MS}
-						>
-							<Progress.Section value={played.percent} />
-							<Progress.Section
-								value={buffered}
-								color={theme.colors[theme.primaryColor][2]}
-							/>
-						</Progress.Root>
-					</div>
-					<Text w={48} ta='left' c='dimmed' size='sm'>
-						{duration ? formatSeconds(duration) : '--:--'}
-					</Text>
-				</Group>
-				<Group justify='flex-end' px='md' gap='xs'>
-					<ActionIcon
-						variant='subtle'
-						onClick={() => (audioRef.current.muted = !audioRef.current.muted)}
-					>
-						{!muted ? (
-							<TbDeviceSpeaker size={20} />
-						) : (
-							<TbDeviceSpeakerOff size={20} />
-						)}
-					</ActionIcon>
-					<Progress
-						value={muted ? 0 : volume * 100}
-						w='60%'
-						maw={200}
-						h={10}
-						radius='xl'
-						c={muted ? 'gray' : undefined}
-						style={{ cursor: !muted ? 'pointer' : undefined }}
-						onClick={(e) => {
-							if (muted) return;
-							const { x: barX, width: barWidth } =
-								e.currentTarget.getBoundingClientRect();
-							const posInBar = e.clientX - barX;
-							const percentOfBar = clamp(posInBar / barWidth, 0, 1);
-							audioRef.current.volume = percentOfBar >= 0.97 ? 1 : percentOfBar;
-						}}
+				<Group wrap='nowrap' align='center'>
+					<ImageWithFallback
+						src={album ? uriForSource(album) : undefined}
+						alt='Album Cover'
 					/>
+					<Stack gap='xs' flex='1' style={{ overflow: 'hidden' }}>
+						<Group gap='xs' align='center' wrap='nowrap'>
+							<Badge
+								variant='light'
+								styles={{ label: { overflow: 'visible' } }}
+							>
+								{fileTypeFromMime(selectedSource.mimeType)}
+							</Badge>
+							<Text
+								size='lg'
+								fw={600}
+								ta='left'
+								style={{
+									whiteSpace: 'nowrap',
+									overflow: 'hidden',
+									textOverflow: 'ellipsis',
+								}}
+							>
+								{song.title}
+							</Text>
+						</Group>
+						<Group align='center' justify='center' gap='xs'>
+							<Text w={48} ta='right' c='dimmed' size='sm'>
+								{formatSeconds(played.seconds)}
+							</Text>
+							<div style={{ flexGrow: 1 }}>
+								<Progress.Root
+									style={{ cursor: duration ? 'pointer' : undefined }}
+									onClick={(e) => {
+										if (!duration) return;
+										const { x: barX, width: barWidth } =
+											e.currentTarget.getBoundingClientRect();
+										const posInBar = e.clientX - barX;
+										const percentOfBar = clamp(posInBar / barWidth, 0, 1);
+										audioRef.current.currentTime = duration * percentOfBar;
+									}}
+									transitionDuration={LOADED_INTERVAL_MS}
+								>
+									<Progress.Section value={played.percent} />
+									<Progress.Section
+										value={buffered}
+										color={theme.colors[theme.primaryColor][2]}
+									/>
+								</Progress.Root>
+							</div>
+							<Text w={48} ta='left' c='dimmed' size='sm'>
+								{duration ? formatSeconds(duration) : '--:--'}
+							</Text>
+						</Group>
+						<Group justify='flex-end' px='md' gap='xs'>
+							<ActionIcon
+								variant='subtle'
+								onClick={() =>
+									(audioRef.current.muted = !audioRef.current.muted)
+								}
+							>
+								{!muted ? (
+									<TbDeviceSpeaker size={20} />
+								) : (
+									<TbDeviceSpeakerOff size={20} />
+								)}
+							</ActionIcon>
+							<Progress
+								value={muted ? 0 : volume * 100}
+								w='60%'
+								maw={200}
+								h={10}
+								radius='xl'
+								c={muted ? 'gray' : undefined}
+								style={{ cursor: !muted ? 'pointer' : undefined }}
+								onClick={(e) => {
+									if (muted) return;
+									const { x: barX, width: barWidth } =
+										e.currentTarget.getBoundingClientRect();
+									const posInBar = e.clientX - barX;
+									const percentOfBar = clamp(posInBar / barWidth, 0, 1);
+									audioRef.current.volume =
+										percentOfBar >= 0.97 ? 1 : percentOfBar;
+								}}
+							/>
+						</Group>
+					</Stack>
 				</Group>
 				<Group justify='center'>
 					<ActionIcon size='xl' radius='xl' onClick={changeShuffle}>

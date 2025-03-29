@@ -1,4 +1,4 @@
-use std::{io::Cursor, sync::Arc};
+use std::sync::Arc;
 
 use axum::{
     body::Bytes,
@@ -7,19 +7,15 @@ use axum::{
 };
 use axum_extra::extract::CookieJar;
 use serde::{Deserialize, Serialize};
-use symphonia::core::{
-    formats::FormatOptions,
-    io::MediaSourceStream,
-    meta::{MetadataOptions, MetadataRevision, StandardTagKey, StandardVisualKey, Tag, Visual},
-    probe::Hint,
-};
 
 use crate::{
-    db::{Album, Artist, Song, StorageBackend, User},
+    api::audio::{get_metadata, InitSongInfo},
+    db::{self, Album, Artist, Song, StorageBackend, User},
     ApiError,
 };
 
 use super::{
+    audio::AlbumCover,
     auth::{self, AUTH_COOKIE},
     State,
 };
@@ -51,24 +47,6 @@ pub async fn handler(
 }
 
 const ALLOWED_MIME_TYPES: [&str; 3] = ["audio/flac", "audio/mp3", "audio/mpeg"];
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct UploadInfo {
-    name: Arc<str>,
-    #[allow(unused)]
-    size: usize,
-    #[serde(rename = "type")]
-    mime_type: Arc<str>,
-}
-
-#[derive(Debug)]
-struct ParsedMetadata {
-    title: Option<Arc<str>>,
-    album: Option<Arc<str>>,
-    artists: Vec<Arc<str>>,
-    album_cover: Option<Arc<Visual>>,
-}
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -116,7 +94,7 @@ async fn handle_ws(mut ws: WebSocket, state: State, _user: User) -> Result<(), A
         .await
         .ok_or(ApiError::InvalidWSMessage)??
         .into_text()?;
-    let info: Box<[Arc<UploadInfo>]> = serde_json::from_str(&info_str)?;
+    let info: Box<[Arc<InitSongInfo>]> = serde_json::from_str(&info_str)?;
 
     tracing::debug!("Uploading: {info:#?}");
 
@@ -210,7 +188,7 @@ async fn add_song(
     song_data: Bytes,
     mime_type: Arc<str>,
     final_meta: FinalMetadata,
-    album_cover: Option<Arc<Visual>>,
+    album_cover: Option<AlbumCover>,
 ) -> Result<AddSongResult, ApiError> {
     let storage_backend = StorageBackend::get_by_name(&final_meta.storage_backend, &state.sqlite)
         .await?
@@ -221,8 +199,11 @@ async fn add_song(
         final_meta.title,
         chrono::Utc::now().timestamp(),
         mime_type.split_once("/").unwrap().1
-    );
+    )
+    .replace("/", "~slash~");
 
+    // Write to storage backend first since its waaaaaay more likely to fail
+    let _ = operator.write(&path, song_data).await?;
     let song_id = Song::insert_w_source(
         &final_meta.title,
         &path,
@@ -231,15 +212,39 @@ async fn add_song(
         &state.sqlite,
     )
     .await?;
-    let _ = operator.write(&path, song_data).await?;
     let mut res = AddSongResult::default();
 
     // Create & add album tag to song
     if let Some(album_title) = final_meta.album {
-        let album_tag_res = if let Some(_album_cover) = album_cover {
+        let album_tag_res = if let Some(album_cover) = album_cover {
             // TODO: album cover from song metadata, needs some image encoding/decoding stuff and operator
-            // Album::insert_w_source(&final_meta.album, path, mime_type, backend, executor)
-            Album::insert_w_tag(&album_title, &state.sqlite).await
+
+            let cover_image_mime_type = &*album_cover.mime_type;
+            let cover_image_path = format!(
+                "images/{}.{}",
+                album_title,
+                cover_image_mime_type.split_once("/").unwrap().1
+            )
+            .replace("/", "~slash~");
+            let write_image_res = operator.write(&cover_image_path, album_cover.data).await;
+            if let Err(err) = write_image_res {
+                Err(db::Error::InsertError(
+                    "albums",
+                    sqlx::Error::Io(std::io::Error::new(
+                        std::io::ErrorKind::Other,
+                        format!("couldn't write album cover to backend: {err:?}"),
+                    )),
+                ))
+            } else {
+                Album::insert_w_source_and_tag(
+                    &album_title,
+                    &cover_image_path,
+                    cover_image_mime_type,
+                    &final_meta.storage_backend,
+                    &state.sqlite,
+                )
+                .await
+            }
         } else {
             Album::insert_w_tag(&album_title, &state.sqlite).await
         };
@@ -296,63 +301,6 @@ async fn close_with_error(mut ws: WebSocket, error: String) -> Result<(), ApiErr
     ws.send(extract::ws::Message::Close(None))
         .await
         .map_err(Into::into)
-}
-
-fn get_metadata(song: Bytes, info: &UploadInfo) -> Result<ParsedMetadata, ApiError> {
-    let src = MediaSourceStream::new(Box::new(Cursor::new(song)), Default::default());
-    let mut hint = Hint::new();
-    hint.mime_type(&info.mime_type);
-
-    // Use the default options for metadata and format readers.
-    let meta_opts: MetadataOptions = Default::default();
-    let fmt_opts: FormatOptions = Default::default();
-
-    // Probe the media source.
-    let mut probed = symphonia::default::get_probe().format(&hint, src, &fmt_opts, &meta_opts)?;
-
-    let mut meta = ParsedMetadata {
-        title: Some(info.name.clone()),
-        album: None,
-        artists: vec![],
-        album_cover: None,
-    };
-
-    tracing::debug!("tracks: {:?}", probed.format.tracks());
-    if let Some(metadata_rev) = probed.format.metadata().current() {
-        populate_from_meta(&mut meta, metadata_rev);
-    } else if let Some(metadata_rev) = probed.metadata.get().as_ref().and_then(|m| m.current()) {
-        populate_from_meta(&mut meta, metadata_rev);
-    }
-
-    Ok(meta)
-}
-
-fn populate_from_meta(meta: &mut ParsedMetadata, parsed_meta: &MetadataRevision) {
-    meta.title = get_string_tag(parsed_meta.tags(), StandardTagKey::TrackTitle).map(Arc::from);
-    meta.album = get_string_tag(parsed_meta.tags(), StandardTagKey::Album).map(Arc::from);
-    meta.album_cover = parsed_meta
-        .visuals()
-        .iter()
-        .find(|v| {
-            v.usage
-                .is_some_and(|usage| usage == StandardVisualKey::FrontCover)
-        })
-        .cloned()
-        .map(Arc::new);
-
-    if let Some(artist) = get_string_tag(parsed_meta.tags(), StandardTagKey::Artist).map(Arc::from)
-    {
-        meta.artists.push(artist);
-    }
-}
-
-fn get_string_tag(tags: &[Tag], key: StandardTagKey) -> Option<&str> {
-    tags.iter()
-        .find(|t| t.std_key.is_some_and(|k| k == key))
-        .and_then(|t| match &t.value {
-            symphonia::core::meta::Value::String(v) => Some(v.as_str()),
-            _ => None,
-        })
 }
 
 fn default_storage_backend_name() -> Arc<str> {
