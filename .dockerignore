@@ -3,6 +3,8 @@ web/dist/
 web/.gitignore
 web/.prettierrc
 
+mobile
+
 target/
 my-music-data/
 .vscode
