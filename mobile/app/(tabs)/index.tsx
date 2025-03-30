@@ -1,78 +1,121 @@
-import { Image, StyleSheet, Platform } from 'react-native';
+import {
+	StyleSheet,
+	SafeAreaView,
+	ScrollView,
+	TouchableOpacity,
+} from 'react-native';
 
-import { HelloWave } from '@/components/HelloWave';
-import ParallaxScrollView from '@/components/ParallaxScrollView';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
+import { useSongs } from '@/hooks/maps';
+import { useEffect } from 'react';
+import TrackPlayer, { AddTrack, RepeatMode } from 'react-native-track-player';
+import useSWR from 'swr';
+import { useFetcher } from '@/hooks/fetcher';
+import { Source } from '@/types/Source';
+import { useServer } from '@/hooks/storage';
+import { Playback } from '@/components/Playback/Playback';
+import { Album } from '@/types/Album';
+import CookieManager from '@react-native-cookies/cookies';
+
+const uriForSource = (
+	baseUrl: string,
+	cookiesHeader: string,
+	source: { request: { uri: string } },
+): { uri: string; headers: Record<string, string> } => {
+	let uri = source.request.uri;
+	const headers: Record<string, string> = {};
+	if (uri.startsWith('/')) {
+		uri = `${baseUrl}${uri}`;
+		headers['cookie'] = cookiesHeader;
+	}
+	return { uri, headers };
+};
 
 export default function HomeScreen() {
+	const fetcher = useFetcher();
+	const [baseUrl] = useServer();
+	const { data: allSources } = useSWR<
+		(Source & {
+			songId: number;
+			request: { uri: string };
+		})[]
+	>('/api/songs/sources', fetcher);
+	const { data: allAlbums } = useSWR<
+		(Album & {
+			songId: number;
+			request: { uri: string };
+		})[]
+	>('/api/albums/sources', fetcher);
+	const { songsArray: songs, error } = useSongs();
+
+	useEffect(() => {
+		setTimeout(async () => {
+			if (!songs || !allSources || !allAlbums || !baseUrl) return;
+			const cookies = await CookieManager.get(baseUrl);
+			const cookiesHeader = Object.values(cookies)
+				.map((c) => `${c.name}=${c.value}`)
+				.join(';');
+			await TrackPlayer.reset();
+			await TrackPlayer.setRepeatMode(RepeatMode.Queue);
+			const tracks = songs
+				.map((s) => {
+					const source = allSources.find((src) => src.songId === s.id);
+					if (!source) return undefined;
+					const album = allAlbums.find((a) => s.tags.includes(a.title));
+					const { uri, headers } = uriForSource(baseUrl, cookiesHeader, source);
+					const albumUri = album
+						? uriForSource(baseUrl, cookiesHeader, album)
+						: undefined;
+
+					return {
+						url: uri,
+						title: s.title,
+						headers,
+						artwork: albumUri?.uri,
+					} satisfies AddTrack;
+				})
+				.filter((t) => t !== undefined);
+			await TrackPlayer.setQueue(tracks);
+		});
+	}, [songs, allSources, baseUrl]);
+
+	if (error)
+		return (
+			<SafeAreaView>
+				<ThemedText>{error.toString()}</ThemedText>
+			</SafeAreaView>
+		);
+	if (!songs || !allSources) return null;
+
+	const filteredSongs = songs.filter(
+		(s) => !!allSources.find((src) => src.songId === s.id),
+	);
+
 	return (
-		<ParallaxScrollView
-			headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-			headerImage={
-				<Image
-					source={require('@/assets/images/partial-react-logo.png')}
-					style={styles.reactLogo}
-				/>
-			}
-		>
-			<ThemedView style={styles.titleContainer}>
-				<ThemedText type='title'>Welcome!</ThemedText>
-				<HelloWave />
-			</ThemedView>
-			<ThemedView style={styles.stepContainer}>
-				<ThemedText type='subtitle'>Step 1: Try it</ThemedText>
-				<ThemedText>
-					Edit{' '}
-					<ThemedText type='defaultSemiBold'>app/(tabs)/index.tsx</ThemedText>{' '}
-					to see changes. Press{' '}
-					<ThemedText type='defaultSemiBold'>
-						{Platform.select({
-							ios: 'cmd + d',
-							android: 'cmd + m',
-							web: 'F12',
-						})}
-					</ThemedText>{' '}
-					to open developer tools.
-				</ThemedText>
-			</ThemedView>
-			<ThemedView style={styles.stepContainer}>
-				<ThemedText type='subtitle'>Step 2: Explore</ThemedText>
-				<ThemedText>
-					Tap the Explore tab to learn more about what's included in this
-					starter app.
-				</ThemedText>
-			</ThemedView>
-			<ThemedView style={styles.stepContainer}>
-				<ThemedText type='subtitle'>Step 3: Get a fresh start</ThemedText>
-				<ThemedText>
-					When you're ready, run{' '}
-					<ThemedText type='defaultSemiBold'>npm run reset-project</ThemedText>{' '}
-					to get a fresh <ThemedText type='defaultSemiBold'>app</ThemedText>{' '}
-					directory. This will move the current{' '}
-					<ThemedText type='defaultSemiBold'>app</ThemedText> to{' '}
-					<ThemedText type='defaultSemiBold'>app-example</ThemedText>.
-				</ThemedText>
-			</ThemedView>
-		</ParallaxScrollView>
+		<ThemedView style={styles.container}>
+			<SafeAreaView>
+				<ScrollView>
+					{filteredSongs.map((s, i) => (
+						<TouchableOpacity
+							key={s.id}
+							onPress={async () => {
+								await TrackPlayer.skip(i);
+								await TrackPlayer.play();
+							}}
+						>
+							<ThemedText>{s.title}</ThemedText>
+						</TouchableOpacity>
+					))}
+				</ScrollView>
+				<Playback />
+			</SafeAreaView>
+		</ThemedView>
 	);
 }
 
 const styles = StyleSheet.create({
-	titleContainer: {
-		flexDirection: 'row',
-		alignItems: 'center',
-		gap: 8,
-	},
-	stepContainer: {
-		gap: 8,
-		marginBottom: 8,
-	},
-	reactLogo: {
-		height: 178,
-		width: 290,
-		bottom: 0,
-		left: 0,
-		position: 'absolute',
+	container: {
+		flex: 1,
 	},
 });

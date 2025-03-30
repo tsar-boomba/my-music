@@ -38,7 +38,7 @@ fn create_cookie(config: &Config, user: &User) -> Cookie<'static> {
     ))
     .http_only(true)
     .same_site(SameSite::Lax)
-    .secure(true)
+    .secure(!cfg!(debug_assertions))
     .permanent()
     .build()
 }
