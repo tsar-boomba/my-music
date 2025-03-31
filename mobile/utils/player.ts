@@ -58,40 +58,10 @@ const serviceHandler = async () => {
 		TrackPlayer.seekTo(event.position);
 	});
 
-	TrackPlayer.addEventListener(Event.RemoteDuck, async (event) => {
-		console.log('Event.RemoteDuck', event);
-	});
-
-	TrackPlayer.addEventListener(Event.PlaybackQueueEnded, (event) => {
-		console.log('Event.PlaybackQueueEnded', event);
-	});
-
 	TrackPlayer.addEventListener(Event.PlaybackActiveTrackChanged, (event) => {
 		console.log('Event.PlaybackActiveTrackChanged', event);
-		if (event.track) TrackPlayer.updateNowPlayingMetadata(event.track);
+		if (event.track) TrackPlayer.updateNowPlayingMetadata({ artwork: event.track.artwork });
 	});
-
-	TrackPlayer.addEventListener(Event.PlaybackPlayWhenReadyChanged, (event) => {
-		console.log('Event.PlaybackPlayWhenReadyChanged', event);
-	});
-
-	TrackPlayer.addEventListener(Event.PlaybackState, (event) => {
-		console.log('Event.PlaybackState', event);
-	});
-
-	TrackPlayer.addEventListener(Event.MetadataChapterReceived, (event) => {
-		console.log('Event.MetadataChapterReceived', event);
-	});
-
-	TrackPlayer.addEventListener(Event.MetadataTimedReceived, (event) => {
-		console.log('Event.MetadataTimedReceived', event);
-	});
-
-	TrackPlayer.addEventListener(Event.MetadataCommonReceived, (event) => {
-		console.log('Event.MetadataCommonReceived', event);
-	});
-
-	console.log('registered service handlers');
 };
 
 export const registerPlayerService = () => {
