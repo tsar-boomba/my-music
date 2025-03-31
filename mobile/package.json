@@ -40,7 +40,7 @@
     "react-native-reanimated": "~3.16.1",
     "react-native-safe-area-context": "4.12.0",
     "react-native-screens": "~4.4.0",
-    "react-native-track-player": "^4.1.1",
+    "react-native-track-player": "4.1.1-nightly-2765d09cb93541d89be94a4809320e4df33c0d47",
     "react-native-web": "~0.19.13",
     "react-native-webview": "13.12.5",
     "swr": "^2.3.3"

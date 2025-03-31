@@ -1,15 +1,21 @@
 import { Text, View } from 'react-native';
 import { useProgress } from 'react-native-track-player';
 import { ThemedView } from '../ThemedView';
+import { ThemedText } from '../ThemedText';
+
+const formatSeconds = (seconds: number): string => {
+	const minutes = Math.floor(seconds / 60);
+	return `${minutes.toFixed(0)}:${(seconds % 60).toFixed(0).padStart(2, '0')}`;
+};
 
 export const Progress = () => {
-	const progress = useProgress(250);
+	const { position, duration, buffered } = useProgress(100);
 
 	return (
 		<ThemedView>
-			<Text>
-				{progress.position.toFixed(2)} / {progress.duration.toFixed(2)}
-			</Text>
+			<ThemedText>
+				{formatSeconds(position)} / {formatSeconds(duration)}
+			</ThemedText>
 		</ThemedView>
 	);
 };

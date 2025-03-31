@@ -8,10 +8,8 @@
     "scheme": "myapp",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
-    "entryPoint": "app/main.tsx",
     "ios": {
       "supportsTablet": true,
-      "supportsBackgroundPlayback": true,
       "bundleIdentifier": "com.anonymous.mymusic",
       "infoPlist": {
 				"UIBackgroundModes": ["audio"]

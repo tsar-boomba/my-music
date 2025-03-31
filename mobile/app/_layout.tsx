@@ -11,28 +11,23 @@ import { useEffect, useState } from 'react';
 import 'react-native-reanimated';
 
 import { useColorScheme } from '@/hooks/useColorScheme';
-import { useAuthToken, useServer } from '@/hooks/storage';
+import { useServer } from '@/hooks/storage';
 import { SWRConfig } from 'swr';
 import { AppState, AppStateStatus } from 'react-native';
-import TrackPlayer from 'react-native-track-player';
-import { registerPlayer } from '@/utils/player';
+import { setupPlayer } from '@/utils/player';
 import CookieManager from '@react-native-cookies/cookies';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
-let playerReadyPromise = registerPlayer();
 
 export default function RootLayout() {
 	const colorScheme = useColorScheme();
 	const [loaded] = useFonts({
 		SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
 	});
-	const [playerReady, setPlayerReady] = useState(false);
 	const [server] = useServer();
-
-	useEffect(() => {
-		playerReadyPromise.then(() => setPlayerReady(true));
-	}, []);
+	const playerReady = useSetupPlayer();
+	
 
 	useEffect(() => {
 		if (playerReady && loaded) {
@@ -97,4 +92,22 @@ export default function RootLayout() {
 			</SWRConfig>
 		</ThemeProvider>
 	);
+}
+
+function useSetupPlayer() {
+	const [playerReady, setPlayerReady] = useState<boolean>(false);
+
+	useEffect(() => {
+		let unmounted = false;
+		(async () => {
+			await setupPlayer();
+			if (unmounted) return;
+			setPlayerReady(true);
+			if (unmounted) return;
+		})();
+		return () => {
+			unmounted = true;
+		};
+	}, []);
+	return playerReady;
 }

@@ -1386,7 +1386,7 @@ PODS:
     - ReactCommon/turbomodule/bridging
     - ReactCommon/turbomodule/core
     - Yoga
-  - react-native-track-player (4.1.1):
+  - react-native-track-player (4.1.1-nightly-2765d09cb93541d89be94a4809320e4df33c0d47):
     - React-Core
     - SwiftAudioEx (= 1.1.0)
   - react-native-webview (13.12.5):
@@ -2162,7 +2162,7 @@ SPEC CHECKSUMS:
   react-native-cookies: d648ab7025833b977c0b19e142503034f5f29411
   react-native-mmkv-storage: bd8c7ac907b3e5d081a136c951cde0d3a262a21c
   react-native-safe-area-context: 0f16e24dc808e9f0ced17f2bdcec692b2376fb68
-  react-native-track-player: 6dc2e2633265704b8ab6d8124b80239d4ed1f911
+  react-native-track-player: 586b59075564d20d8eddb036f7f5abd3a853d78f
   react-native-webview: 2ae666ce72cfd3c38d8750c2009f5caa621d709f
   React-nativeconfig: 67fa7a63ea288cb5b1d0dd2deaf240405fec164f
   React-NativeModulesApple: 34b7a4d7441a4ee78d18109ff107c1ccf7c074a9
