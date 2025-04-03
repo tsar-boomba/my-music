@@ -7,7 +7,7 @@ import { useFonts } from 'expo-font';
 import { router, Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import 'react-native-reanimated';
 
 import { useColorScheme } from '@/hooks/useColorScheme';
@@ -16,6 +16,7 @@ import { SWRConfig } from 'swr';
 import { AppState, AppStateStatus } from 'react-native';
 import { setupPlayer } from '@/utils/player';
 import CookieManager from '@react-native-cookies/cookies';
+import { storage } from '@/utils/storage';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -27,7 +28,16 @@ export default function RootLayout() {
 	});
 	const [server] = useServer();
 	const playerReady = useSetupPlayer();
-	
+	// Pay the cost to get the
+	const [fallback, setFallback] = useState<Record<string, any>>({});
+
+	useEffect(() => {
+		storage
+			.getMapAsync<Record<string, any>>('swr-fallback')
+			.then((storedFallback) => {
+				setFallback(storedFallback ?? {});
+			});
+	}, []);
 
 	useEffect(() => {
 		if (playerReady && loaded) {
@@ -54,6 +64,12 @@ export default function RootLayout() {
 			<SWRConfig
 				value={{
 					provider: () => new Map(),
+					fallback,
+					onSuccess: (data, key) => {
+						// Don't need rerender, so don't use set function
+						fallback[key] = data;
+						storage.setMapAsync(`swr-fallback`, fallback);
+					},
 					isVisible: () => {
 						return true;
 					},

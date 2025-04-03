@@ -40,11 +40,9 @@ export const Playback = () => {
 				</Button>
 				<Button
 					onPress={async () => {
-						if (track) await TrackPlayer.updateNowPlayingMetadata(track);
 						if (playing || bufferingDuringPlay) {
 							TrackPlayer.pause();
 						} else {
-							console.log('queue', await TrackPlayer.getQueue());
 							TrackPlayer.play();
 						}
 					}}

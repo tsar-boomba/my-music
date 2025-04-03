@@ -6,29 +6,14 @@ import {
 } from 'react-native';
 
 import { ThemedText } from '@/components/ThemedText';
-import { ThemedView } from '@/components/ThemedView';
 import { useSongs } from '@/hooks/maps';
-import { useEffect } from 'react';
-import TrackPlayer, {
-	AddTrack,
-	RepeatMode,
-	TrackType,
-} from 'react-native-track-player';
-import useSWR from 'swr';
-import { useFetcher } from '@/hooks/fetcher';
-import { Source } from '@/types/Source';
-import { useServer } from '@/hooks/storage';
-import { Album } from '@/types/Album';
-import CookieManager from '@react-native-cookies/cookies';
 import { useStartSession } from '@/utils/player';
-
-
 
 export default function HomeScreen() {
 	const startSession = useStartSession();
 	const { songsArray: songs, error } = useSongs();
 
-	if (error)
+	if (error && !songs)
 		return (
 			<SafeAreaView>
 				<ThemedText>{error.toString()}</ThemedText>

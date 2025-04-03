@@ -16,6 +16,7 @@ import TrackPlayer, {
 	TrackType,
 } from 'react-native-track-player';
 import useSWR from 'swr';
+import { DownloadedSources, useDownloadedSources } from './downloads';
 
 const serviceHandler = async () => {
 	TrackPlayer.addEventListener(Event.RemotePause, () => {
@@ -59,8 +60,9 @@ const serviceHandler = async () => {
 	});
 
 	TrackPlayer.addEventListener(Event.PlaybackActiveTrackChanged, (event) => {
-		console.log('Event.PlaybackActiveTrackChanged', event);
-		if (event.track) TrackPlayer.updateNowPlayingMetadata({ artwork: event.track.artwork });
+		console.log('Event.PlaybackActiveTrackChanged');
+		if (event.track)
+			TrackPlayer.updateNowPlayingMetadata({ artwork: event.track.artwork });
 	});
 };
 
@@ -123,17 +125,27 @@ export const setupPlayer = async (): Promise<void> => {
 };
 
 const uriForSource = (
+	downloadedSources: DownloadedSources,
 	baseUrl: string,
 	cookiesHeader: string,
-	source: { request: { uri: string } },
-): { uri: string; headers: Record<string, string> } => {
+	source: { id: number; mimeType: string; request: { uri: string } },
+): {
+	uri: string;
+	mimeType: string | null;
+	headers: Record<string, string>;
+	type: TrackType
+} => {
+	if (source.id in downloadedSources) {
+		return { ...downloadedSources[source.id], headers: {}, type: TrackType.Default };
+	}
+
 	let uri = source.request.uri;
 	const headers: Record<string, string> = {};
 	if (uri.startsWith('/')) {
 		uri = `${baseUrl}${uri}`;
 		headers['cookie'] = cookiesHeader;
 	}
-	return { uri, headers };
+	return { uri, mimeType: source.mimeType, headers, type: TrackType.HLS };
 };
 
 export const useStartSession = ():
@@ -148,11 +160,12 @@ export const useStartSession = ():
 		})[]
 	>('/api/songs/sources', fetcher);
 	const { data: allAlbums } = useSWR<
-		(Album & {
-			songId: number;
+		(Source & {
+			title: string;
 			request: { uri: string };
 		})[]
 	>('/api/albums/sources', fetcher);
+	const downloadedSources = useDownloadedSources();
 
 	if (!allSources || !allAlbums || !baseUrl) return undefined;
 
@@ -166,9 +179,14 @@ export const useStartSession = ():
 				const source = allSources.find((src) => src.songId === s.id);
 				if (!source) return undefined;
 				const album = allAlbums.find((a) => s.tags.includes(a.title));
-				const { uri, headers } = uriForSource(baseUrl, cookiesHeader, source);
+				const { uri, mimeType, headers, type } = uriForSource(
+					downloadedSources,
+					baseUrl,
+					cookiesHeader,
+					source,
+				);
 				const albumUri = album
-					? uriForSource(baseUrl, cookiesHeader, album)
+					? uriForSource(downloadedSources, baseUrl, cookiesHeader, album)
 					: undefined;
 
 				return {
@@ -177,7 +195,8 @@ export const useStartSession = ():
 					headers,
 					artwork: albumUri?.uri,
 					artist: 'My Music',
-					type: TrackType.HLS,
+					contentType: mimeType ?? undefined,
+					type,
 				} satisfies AddTrack;
 			})
 			.filter((t) => t !== undefined);
@@ -186,7 +205,7 @@ export const useStartSession = ():
 		TrackPlayer.play();
 		tracks.forEach((t, i) =>
 			TrackPlayer.updateMetadataForTrack(i, { title: t.title }).then(
-				() => console.log('updated meta for', t.title),
+				() => {},
 				() => console.error('Failed to update meta for', t.title),
 			),
 		);
