@@ -1,10 +1,11 @@
 import { ReactNode, useCallback } from 'react';
 import Header from './Header';
-import { ActionIcon, Box, Group, Stack } from '@mantine/core';
+import { ActionIcon, Box, Group, Stack, useMantineColorScheme } from '@mantine/core';
 import { useAuth } from '../../utils/useAuth';
 import { TbPlus } from 'react-icons/tb';
 import { openModal } from '@mantine/modals';
 import { AddSongModal } from '../AddSongModal';
+import { CgMoon, CgSun } from 'react-icons/cg';
 
 export const DesktopLayout = ({
 	children,
@@ -14,6 +15,9 @@ export const DesktopLayout = ({
 	playbackManager: ReactNode;
 }) => {
 	const { user } = useAuth({ allowAnon: true });
+	const { colorScheme, toggleColorScheme } = useMantineColorScheme({
+		keepTransitions: true,
+	});
 
 	const openAddSongs = useCallback(
 		() =>
@@ -25,7 +29,7 @@ export const DesktopLayout = ({
 	);
 
 	return (
-		<Box pt={60}>
+		<Stack mih='100%' gap={0} justify='space-between'>
 			<Header
 				links={
 					!user || user.admin
@@ -51,27 +55,33 @@ export const DesktopLayout = ({
 				style={{ pointerEvents: 'none', zIndex: 1 }}
 			>
 				<Stack gap={0}>
-					<Group
-						justify='flex-end'
-						px='md'
-						bg='transparent'
-						pb='md'
-						style={{ pointerEvents: 'none' }}
-					>
-						{user && user.admin && (
-							<ActionIcon
-								size='xl'
-								radius='xl'
-								onClick={openAddSongs}
-								style={{ pointerEvents: 'auto' }}
-							>
-								<TbPlus strokeWidth={3} />
-							</ActionIcon>
-						)}
+					<Group justify='space-between' px='md' bg='transparent' pb='md'>
+						<ActionIcon
+							size='lg'
+							onClick={() => toggleColorScheme()}
+							style={{ pointerEvents: 'auto' }}
+						>
+							{colorScheme === 'dark' ? (
+								<CgSun size={18} />
+							) : (
+								<CgMoon size={18} />
+							)}
+						</ActionIcon>
+						{!user ||
+							(user.admin && (
+								<ActionIcon
+									size='xl'
+									radius='xl'
+									onClick={openAddSongs}
+									style={{ pointerEvents: 'auto' }}
+								>
+									<TbPlus />
+								</ActionIcon>
+							))}
 					</Group>
 					{playbackManager}
 				</Stack>
 			</Box>
-		</Box>
+		</Stack>
 	);
 };

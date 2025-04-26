@@ -8,10 +8,13 @@ import {
 import { ThemedText } from '@/components/ThemedText';
 import { useSongs } from '@/hooks/maps';
 import { useStartSession } from '@/utils/player';
+import { useDownloadedSources } from '@/utils/downloads';
 
 export default function HomeScreen() {
 	const startSession = useStartSession();
 	const { songsArray: songs, error } = useSongs();
+	// TODO: indicate that a song is downloaded
+	const downloadedSources = useDownloadedSources();
 
 	if (error && !songs)
 		return (
@@ -28,9 +31,7 @@ export default function HomeScreen() {
 					<TouchableOpacity
 						key={s.id}
 						style={styles.song}
-						onPress={() => {
-							startSession(songs, i)
-						}}
+						onPress={() => startSession(songs, i)}
 					>
 						<ThemedText>{s.title}</ThemedText>
 					</TouchableOpacity>
