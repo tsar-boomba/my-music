@@ -29,7 +29,7 @@ export const DesktopLayout = ({
 	);
 
 	return (
-		<Stack mih='100%' gap={0} justify='space-between'>
+		<Stack mih='100%' gap={0} justify='space-between' pt={60}>
 			<Header
 				links={
 					!user || user.admin
