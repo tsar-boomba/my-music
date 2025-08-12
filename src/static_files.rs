@@ -74,9 +74,10 @@ pub async fn handle_static(
         },
     };
 
-    let stream = ReaderStream::new(BufReader::new(file)).map(|read_res| read_res.map(Frame::data));
+    let stream = ReaderStream::with_capacity(BufReader::new(file), 128 * 1024)
+        .map(|read_res| read_res.map(Frame::data));
     // Use original path without gz for mime type
-    let mime = mime_guess::from_path(&raw_file_path).first_or_text_plain();
+    let mime = mime_guess::from_path(&raw_file_path).first_or_octet_stream();
 
     let cookie = Cookie::build(("domain", config.domain.to_string()))
         .domain(config.domain.host().unwrap_or_default())
