@@ -87,14 +87,14 @@ impl StorageBackendConfig {
                     "Creating S3 operator with access_key_id: {}",
                     s3_config.access_key_id
                 );
-                let builder = opendal::services::S3::default()
+                
+
+                opendal::services::S3::default()
                     .access_key_id(&s3_config.access_key_id)
                     .secret_access_key(&s3_config.secret_access_key)
                     .region(&s3_config.region)
                     .bucket(&s3_config.bucket)
-                    .disable_config_load();
-
-                builder
+                    .disable_config_load()
             })
             .unwrap()
             .finish(),
@@ -130,7 +130,7 @@ impl StorageBackend {
         )
         .fetch_optional(executor)
         .await
-        .map_err(|e| Error::SelectError("storage_backends", e))?
+        .map_err(|e| Error::Select("storage_backends", e))?
         .map(|db_ver| db_ver.parse())
         .transpose()
     }
@@ -151,7 +151,7 @@ impl StorageBackend {
         )
         .execute(executor)
         .await
-        .map_err(|e| Error::InsertError("tags", e))
+        .map_err(|e| Error::Insert("tags", e))
         .map(|_| ())
     }
 
@@ -168,7 +168,7 @@ impl StorageBackend {
         )
         .execute(executor)
         .await
-        .map_err(|e| Error::UpdateError("storage_backends", e))
+        .map_err(|e| Error::Update("storage_backends", e))
         .map(|_| ())
     }
 

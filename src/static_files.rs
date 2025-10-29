@@ -1,6 +1,6 @@
 use std::{
     io::{self, ErrorKind},
-    path::PathBuf,
+    path::{Path, PathBuf},
 };
 
 use axum::body::Bytes;
@@ -113,7 +113,7 @@ fn not_found<E>(path: &str) -> Response<BoxBody<Bytes, E>> {
         .unwrap()
 }
 
-fn add_extension(path: &PathBuf, extension: impl AsRef<std::path::Path>) -> PathBuf {
+fn add_extension(path: &Path, extension: impl AsRef<std::path::Path>) -> PathBuf {
     match path.extension() {
         Some(ext) => {
             let mut ext = ext.to_os_string();

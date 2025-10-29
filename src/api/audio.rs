@@ -69,7 +69,7 @@ pub async fn try_populate_album_covers(
         let Ok(sources) = Source::for_song(song.song.id, &state.sqlite).await else {
             continue;
         };
-        let Some(source) = sources.get(0).cloned() else {
+        let Some(source) = sources.first().cloned() else {
             tracing::debug!("song has no sources {}", song.song.title);
             continue;
         };

@@ -32,7 +32,7 @@ impl User {
         sqlx::query_as!(User, "SELECT * FROM users")
             .fetch_all(executor)
             .await
-            .map_err(|e| Error::SelectError("users", e))
+            .map_err(|e| Error::Select("users", e))
     }
 
     pub async fn insert_new(
@@ -53,7 +53,7 @@ impl User {
         )
         .execute(executor)
         .await
-        .map_err(|e| Error::InsertError("tags", e))
+        .map_err(|e| Error::Insert("tags", e))
         .map(|_| ())
     }
 
@@ -75,7 +75,7 @@ impl User {
         )
         .execute(executor)
         .await
-        .map_err(|e| Error::InsertError("tags", e))
+        .map_err(|e| Error::Insert("tags", e))
         .map(|_| ())
     }
 
@@ -88,9 +88,7 @@ impl User {
             .await
         {
             Ok(user) => Ok(user),
-            Err(err) => match err {
-                _ => Err(Error::SelectError("sources", err)),
-            },
+            Err(err) => Err(Error::Select("sources", err)),
         }
     }
 

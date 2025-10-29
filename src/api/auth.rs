@@ -32,7 +32,7 @@ fn create_cookie(config: &Config, user: &User) -> Cookie<'static> {
         AUTH_COOKIE,
         claims
             .sign_with_key(
-                &*KEY.get_or_init(|| Hmac::new_from_slice(config.jwt_secret.as_bytes()).unwrap()),
+                KEY.get_or_init(|| Hmac::new_from_slice(config.jwt_secret.as_bytes()).unwrap()),
             )
             .unwrap(),
     ))
@@ -46,7 +46,7 @@ fn create_cookie(config: &Config, user: &User) -> Cookie<'static> {
 fn verify_cookie(config: &Config, token: &str) -> Option<FxHashMap<String, String>> {
     token
         .verify_with_key(
-            &*KEY.get_or_init(|| Hmac::new_from_slice(config.jwt_secret.as_bytes()).unwrap()),
+            KEY.get_or_init(|| Hmac::new_from_slice(config.jwt_secret.as_bytes()).unwrap()),
         )
         .ok()
 }
@@ -109,5 +109,5 @@ pub async fn check_auth(
 ) -> Result<Json<User>, ApiError> {
     authenticate(&state, cookies.get(AUTH_COOKIE))
         .await
-        .map(|user| Json(user))
+        .map(Json)
 }

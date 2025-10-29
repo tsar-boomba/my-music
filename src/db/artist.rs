@@ -29,13 +29,13 @@ impl Artist {
         let mut transaction = executor
             .begin()
             .await
-            .map_err(|e| Error::TransactionError("songs", e))?;
+            .map_err(|e| Error::Transaction("songs", e))?;
 
         for artist in artists {
             sqlx::query!("INSERT OR IGNORE INTO artists (name) VALUES ($1)", artist)
                 .execute(&mut *transaction)
                 .await
-                .map_err(|e| Error::InsertError("sources", e))?;
+                .map_err(|e| Error::Insert("sources", e))?;
 
             sqlx::query!(
                 "INSERT OR IGNORE INTO tags(name, artist_id) VALUES ($1, $2)",
@@ -44,13 +44,13 @@ impl Artist {
             )
             .execute(&mut *transaction)
             .await
-            .map_err(|e| Error::InsertError("tags", e))?;
+            .map_err(|e| Error::Insert("tags", e))?;
         }
 
         transaction
             .commit()
             .await
-            .map_err(|e| Error::TransactionError("songs", e))?;
+            .map_err(|e| Error::Transaction("songs", e))?;
 
         Ok(artists)
     }

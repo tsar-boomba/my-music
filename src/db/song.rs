@@ -1,4 +1,4 @@
-use itertools::Itertools;
+use itertools::intersperse;
 use serde::{Deserialize, Serialize};
 use sqlx::{prelude::*, Pool, Sqlite};
 
@@ -35,7 +35,7 @@ impl Song {
         sqlx::query_as!(Song, "SELECT * FROM songs")
             .fetch_all(executor)
             .await
-            .map_err(|e| Error::SelectError("songs", e))
+            .map_err(|e| Error::Select("songs", e))
     }
 
     pub async fn get_all_with_tags(
@@ -52,7 +52,7 @@ impl Song {
         )
         .fetch_all(executor)
         .await
-        .map_err(|e| Error::SelectError("songs", e))?;
+        .map_err(|e| Error::Select("songs", e))?;
 
         Ok(records
             .into_iter()
@@ -82,7 +82,7 @@ impl Song {
         sqlx::query_as!(Song, "SELECT * FROM songs WHERE id = $1", id)
             .fetch_optional(executor)
             .await
-            .map_err(|e| Error::SelectError("songs", e))
+            .map_err(|e| Error::Select("songs", e))
     }
 
     pub async fn insert_w_source(
@@ -95,7 +95,7 @@ impl Song {
         let mut transaction = executor
             .begin()
             .await
-            .map_err(|e| Error::TransactionError("songs", e))?;
+            .map_err(|e| Error::Transaction("songs", e))?;
 
         let song_id = sqlx::query!("INSERT INTO songs (title) VALUES ($1)", title)
             .execute(&mut *transaction)
@@ -117,13 +117,13 @@ impl Song {
         )
         .execute(&mut *transaction)
         .await
-        .map_err(|e| Error::InsertError("sources", e))
+        .map_err(|e| Error::Insert("sources", e))
         .map(|_| ())?;
 
         transaction
             .commit()
             .await
-            .map_err(|e| Error::TransactionError("songs", e))?;
+            .map_err(|e| Error::Transaction("songs", e))?;
 
         Ok(song_id)
     }
@@ -132,7 +132,7 @@ impl Song {
         let mut transaction = executor
             .begin()
             .await
-            .map_err(|e| Error::TransactionError("songs", e))?;
+            .map_err(|e| Error::Transaction("songs", e))?;
 
         sqlx::query!(
             r#"
@@ -145,18 +145,18 @@ impl Song {
         )
         .execute(&mut *transaction)
         .await
-        .map_err(|e| Error::DeleteError("sources", e))
+        .map_err(|e| Error::Delete("sources", e))
         .map(|_| ())?;
 
         sqlx::query!("DELETE FROM songs WHERE id = $1", id)
             .execute(&mut *transaction)
             .await
-            .map_err(|e| Error::DeleteError("songs", e))?;
+            .map_err(|e| Error::Delete("songs", e))?;
 
         transaction
             .commit()
             .await
-            .map_err(|e| Error::TransactionError("songs", e))?;
+            .map_err(|e| Error::Transaction("songs", e))?;
 
         Ok(())
     }
@@ -173,7 +173,7 @@ impl Song {
         )
         .execute(executor)
         .await
-        .map_err(|e| Error::InsertError("songs_to_tags", e))
+        .map_err(|e| Error::Insert("songs_to_tags", e))
         .map(|_| ())
     }
 
@@ -190,10 +190,7 @@ impl Song {
 			WHERE name IN ({});
 		"#,
             id,
-            tags.into_iter()
-                .map(|_| "?")
-                .intersperse(",")
-                .collect::<Box<str>>()
+            intersperse(tags.iter().map(|_| "?"), ",").collect::<Box<str>>()
         );
 
         let mut query = sqlx::query(&sql);
@@ -205,7 +202,7 @@ impl Song {
         query
             .execute(executor)
             .await
-            .map_err(|e| Error::InsertError("songs_to_tags", e))
+            .map_err(|e| Error::Insert("songs_to_tags", e))
             .map(|_| ())
     }
 }

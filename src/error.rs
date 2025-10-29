@@ -29,7 +29,13 @@ pub enum ApiError {
     #[error("Symphonia Error: {0:?}")]
     Symphonia(#[from] symphonia::core::errors::Error),
     #[error("OpenDAL Error: {0:?}")]
-    OpenDal(#[from] opendal::Error),
+    OpenDal(#[from] Box<opendal::Error>),
+}
+
+impl From<opendal::Error> for ApiError {
+    fn from(value: opendal::Error) -> Self {
+        Self::OpenDal(Box::new(value))
+    }
 }
 
 impl IntoResponse for ApiError {

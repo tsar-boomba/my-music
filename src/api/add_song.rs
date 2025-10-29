@@ -83,11 +83,11 @@ struct Error {
 /// 1. Client sends metadata on songs they want to upload
 /// 2. We verify the metadata
 /// 3. For each song to be uploaded
-/// 	1. The client sends the file
-/// 	2. We parse metadata in the file and send back to client
-/// 	3. Client sends back final metadata for file
-/// 	4. We save the file in a storage backend and in the database
-/// 4.
+///     1. The client sends the file
+///     2. We parse metadata in the file and send back to client
+///     3. Client sends back final metadata for file
+///     4. We save the file in a storage backend and in the database
+/// 4. Done
 async fn handle_ws(mut ws: WebSocket, state: State, _user: User) -> Result<(), ApiError> {
     let info_str = ws
         .recv()
@@ -226,12 +226,11 @@ async fn add_song(
             );
             let write_image_res = operator.write(&cover_image_path, album_cover.data).await;
             if let Err(err) = write_image_res {
-                Err(db::Error::InsertError(
+                Err(db::Error::Insert(
                     "albums",
-                    sqlx::Error::Io(std::io::Error::new(
-                        std::io::ErrorKind::Other,
-                        format!("couldn't write album cover to backend: {err:?}"),
-                    )),
+                    sqlx::Error::Io(std::io::Error::other(format!(
+                        "couldn't write album cover to backend: {err:?}"
+                    ))),
                 ))
             } else {
                 Album::insert_w_source_and_tag(
@@ -267,7 +266,7 @@ async fn add_song(
     }
 
     // Create and add artist tags to song
-    if final_meta.artists.len() > 0 {
+    if !final_meta.artists.is_empty() {
         let artists_slice = final_meta.artists.iter().map(|s| &**s).collect::<Vec<_>>();
         match Artist::insert_w_tags(&artists_slice, &state.sqlite).await {
             Ok(tags) => {

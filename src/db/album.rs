@@ -31,7 +31,7 @@ impl Album {
         )
         .fetch_all(executor)
         .await
-        .map_err(|e| Error::SelectError("albums", e))
+        .map_err(|e| Error::Select("albums", e))
     }
 
     pub async fn insert_w_tag<'a>(
@@ -41,12 +41,12 @@ impl Album {
         let mut transaction = executor
             .begin()
             .await
-            .map_err(|e| Error::TransactionError("songs", e))?;
+            .map_err(|e| Error::Transaction("songs", e))?;
 
         sqlx::query!("INSERT OR IGNORE INTO albums (title) VALUES ($1)", title)
             .execute(&mut *transaction)
             .await
-            .map_err(|e| Error::InsertError("sources", e))?;
+            .map_err(|e| Error::Insert("sources", e))?;
 
         sqlx::query!(
             "INSERT OR IGNORE INTO tags(name, album_id) VALUES ($1, $2)",
@@ -55,12 +55,12 @@ impl Album {
         )
         .execute(&mut *transaction)
         .await
-        .map_err(|e| Error::InsertError("tags", e))?;
+        .map_err(|e| Error::Insert("tags", e))?;
 
         transaction
             .commit()
             .await
-            .map_err(|e| Error::TransactionError("songs", e))?;
+            .map_err(|e| Error::Transaction("songs", e))?;
 
         Ok(title)
     }
@@ -75,7 +75,7 @@ impl Album {
         let mut transaction = executor
             .begin()
             .await
-            .map_err(|e| Error::TransactionError("songs", e))?;
+            .map_err(|e| Error::Transaction("songs", e))?;
 
         let mut cover_image_source_id = sqlx::query!(
             "SELECT cover_image_source_id FROM albums WHERE title = $1",
@@ -83,7 +83,7 @@ impl Album {
         )
         .fetch_optional(&mut *transaction)
         .await
-        .map_err(|e| Error::SelectError("albums", e))?
+        .map_err(|e| Error::Select("albums", e))?
         .and_then(|record| record.cover_image_source_id);
 
         if cover_image_source_id.is_none() {
@@ -108,7 +108,7 @@ impl Album {
         )
         .execute(&mut *transaction)
         .await
-        .map_err(|e| Error::InsertError("sources", e))?
+        .map_err(|e| Error::Insert("sources", e))?
         .last_insert_rowid();
 
         sqlx::query!(
@@ -118,12 +118,12 @@ impl Album {
         )
         .execute(&mut *transaction)
         .await
-        .map_err(|e| Error::InsertError("tags", e))?;
+        .map_err(|e| Error::Insert("tags", e))?;
 
         transaction
             .commit()
             .await
-            .map_err(|e| Error::TransactionError("songs", e))?;
+            .map_err(|e| Error::Transaction("songs", e))?;
 
         Ok(title)
     }

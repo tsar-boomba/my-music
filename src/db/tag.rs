@@ -35,7 +35,7 @@ impl Tag {
         sqlx::query_as!(Tag, "SELECT * FROM tags")
             .fetch_all(executor)
             .await
-            .map_err(|e| Error::SelectError("tags", e))
+            .map_err(|e| Error::Select("tags", e))
     }
 
     pub async fn for_song(
@@ -49,6 +49,6 @@ impl Tag {
         )
         .fetch_all(executor)
         .await
-        .map_err(|e| Error::SelectError("songs_to_sources", e))
+        .map_err(|e| Error::Select("songs_to_sources", e))
     }
 }

@@ -61,9 +61,11 @@ pub struct GetSourceRequest {
     pub headers: http::HeaderMap,
 }
 
+type RequestCache = RwLock<FxHashMap<i64, (Instant, Arc<GetSourceRequest>)>>;
+
 /// 6 days
 const REQ_VALID_FOR: Duration = Duration::from_secs(6 * 24 * 60 * 60);
-static REQUESTS_CACHE: LazyLock<RwLock<FxHashMap<i64, (Instant, Arc<GetSourceRequest>)>>> =
+static REQUESTS_CACHE: LazyLock<RequestCache> =
     LazyLock::new(|| RwLock::new(Default::default()));
 
 impl Source {
@@ -73,13 +75,13 @@ impl Source {
         sqlx::query_as!(Source, "SELECT * from sources")
             .fetch_all(executor)
             .await
-            .map_err(|e| Error::SelectError("sources", e))
+            .map_err(|e| Error::Select("sources", e))
     }
 
     pub async fn get_all_for_songs(
         executor: impl Executor<'_, Database = super::DB> + Copy,
     ) -> Result<Vec<SongSource>, Error> {
-        let results = sqlx::query!("SELECT sts.song_id, s.* FROM songs_to_sources sts JOIN sources s ON s.id = sts.source_id").fetch_all(executor).await.map_err(|e| Error::SelectError("songs_to_sources", e))?;
+        let results = sqlx::query!("SELECT sts.song_id, s.* FROM songs_to_sources sts JOIN sources s ON s.id = sts.source_id").fetch_all(executor).await.map_err(|e| Error::Select("songs_to_sources", e))?;
         let mut results_w_reqs = Vec::with_capacity(results.len());
 
         // TODO: Consider parallelization for when lots of sources
@@ -106,7 +108,7 @@ impl Source {
     pub async fn get_all_for_albums(
         executor: impl Executor<'_, Database = super::DB> + Copy,
     ) -> Result<Vec<AlbumSource>, Error> {
-        let results = sqlx::query!("SELECT a.title, a.link, s.* FROM albums a JOIN sources s ON a.cover_image_source_id = s.id").fetch_all(executor).await.map_err(|e| Error::SelectError("songs_to_sources", e))?;
+        let results = sqlx::query!("SELECT a.title, a.link, s.* FROM albums a JOIN sources s ON a.cover_image_source_id = s.id").fetch_all(executor).await.map_err(|e| Error::Select("songs_to_sources", e))?;
         let mut results_w_reqs = Vec::with_capacity(results.len());
 
         // TODO: Consider parallelization for when lots of sources
@@ -135,14 +137,14 @@ impl Source {
         song_id: i64,
         executor: impl Executor<'_, Database = super::DB>,
     ) -> Result<Vec<Self>, Error> {
-        sqlx::query_as!(Source, "SELECT s.* FROM songs_to_sources sts JOIN sources s ON s.id = sts.source_id WHERE sts.song_id = $1", song_id).fetch_all(executor).await.map_err(|e| Error::SelectError("songs_to_sources", e))
+        sqlx::query_as!(Source, "SELECT s.* FROM songs_to_sources sts JOIN sources s ON s.id = sts.source_id WHERE sts.song_id = $1", song_id).fetch_all(executor).await.map_err(|e| Error::Select("songs_to_sources", e))
     }
 
     pub async fn get_by_id_w_backend(
         id: i64,
         executor: impl Executor<'_, Database = super::DB>,
     ) -> Result<Option<(Source, StorageBackend)>, Error> {
-        let Some(result) = sqlx::query!("SELECT s.*, b.name, b.config FROM sources s JOIN storage_backends b ON storage_backend_name = b.name WHERE id = $1", id).fetch_optional(executor).await.map_err(|e| Error::SelectError("sources", e))? else {
+        let Some(result) = sqlx::query!("SELECT s.*, b.name, b.config FROM sources s JOIN storage_backends b ON storage_backend_name = b.name WHERE id = $1", id).fetch_optional(executor).await.map_err(|e| Error::Select("sources", e))? else {
             return Ok(None);
         };
 
@@ -183,7 +185,10 @@ impl Source {
         let req = if operator.info().full_capability().presign_read {
             match operator
                 // Actually expire later than the cache, to mitigate risk of returning an invalid url from cache
-                .presign_read_with(&self.path, REQ_VALID_FOR + Duration::from_secs((24 * 60 * 60) - 1))
+                .presign_read_with(
+                    &self.path,
+                    REQ_VALID_FOR + Duration::from_secs((24 * 60 * 60) - 1),
+                )
                 .override_content_type(&self.mime_type)
                 .override_cache_control(&format!(
                     "private, max-age={}, immutable",
