@@ -1,6 +1,15 @@
 # my-music
 
-Music for me
+Music for me.
+
+## Local Dev
+
+1. `mkdir my-music-data`
+2. `sqlx database create`
+3. `sqlx migrate run`
+4. In web dir: `pnpm i && pnpm build && pnpm dev`
+5. `cargo run`
+6. go to https://localhost:5173 and login with "admin" and "password"
 
 ## Config
 

@@ -3,7 +3,7 @@ import { Dispatch, RefObject, SetStateAction } from 'react';
 import WebsocketAsPromised from 'websocket-as-promised';
 import { HOST } from '../../api';
 
-const scheme = import.meta.env.DEV ? 'ws://' : 'wss://';
+const scheme = location.protocol === 'http:' ? 'ws://' : 'wss://';
 
 export type ParsedMetadata = {
 	title: string | null;

@@ -23,7 +23,7 @@ import { preload } from 'swr';
 import { apiFetcher } from '../../api';
 import { closeAllModals } from '@mantine/modals';
 
-const ACCEPTED_MIME_TYPES = ['audio/flac', 'audio/mp3', 'audio/mpeg'];
+const ACCEPTED_MIME_TYPES = ['audio/*'];
 
 export const AddSongModal = () => {
 	const { user } = useAuth({ admin: true });

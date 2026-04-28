@@ -87,6 +87,7 @@ const clamp = (n: number, min: number, max: number): number =>
 const fileTypeFromMime = (mimeType: string): string => {
 	const [_, fileType] = mimeType.split('/');
 	if (fileType === 'mpeg') return 'mp3';
+	if (fileType === 'x-m4a') return 'm4a';
 	return fileType;
 };
 
