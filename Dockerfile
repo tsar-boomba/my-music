@@ -25,7 +25,7 @@ RUN apt-get update
 RUN curl https://sh.rustup.rs -sSf | bash -s -- -y
 
 ENV PATH="/root/.cargo/bin:${PATH}"
-RUN cargo install --locked --version 0.1.67 cargo-chef
+RUN cargo install --locked --version 0.1.77 cargo-chef
 RUN cargo install --locked --version 0.8.3 sqlx-cli --no-default-features --features rustls,sqlite
 ENV DATABASE_URL=sqlite:///my-music-data/db
 RUN mkdir -p /my-music-data
