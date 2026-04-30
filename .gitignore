@@ -4,3 +4,4 @@ push
 my-music-config.prod.json
 deploy
 **/.DS_Store
+cookies.txt

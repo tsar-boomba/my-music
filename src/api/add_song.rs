@@ -116,7 +116,7 @@ async fn handle_ws(mut ws: WebSocket, state: State, _user: User) -> Result<(), A
     for song in info {
         // Client sends song data up or we get it from yt-dlp
         let (song_data, mime_type) = match &*song {
-            InitSongInfo::Yt(yt_init_song_info) => yt_dlp_song(&yt_init_song_info).await?,
+            InitSongInfo::Yt(yt_init_song_info) => yt_dlp_song(&yt_init_song_info, &*state.config.yt_dlp_cookies_path).await?,
             InitSongInfo::Uploaded(uploaded_init_song_info) => (
                 ws.recv()
                     .await
@@ -319,27 +319,40 @@ fn default_storage_backend_name() -> Arc<str> {
 }
 
 /// Uses yt-dlp to download the song and returns its raw bytes and (guessed) mime type
-async fn yt_dlp_song(info: &YtInitSongInfo) -> Result<(Bytes, Arc<str>), ApiError> {
+async fn yt_dlp_song(info: &YtInitSongInfo, cookies_path: &str) -> Result<(Bytes, Arc<str>), ApiError> {
     tracing::debug!("using yt-dlp for {info:?}");
     tokio::fs::remove_file("/tmp/tmp.opus").await.ok();
-    let output = tokio::process::Command::new("yt-dlp")
-        .args([
-            "-x",
-            "--audio-format",
-            "opus", // Consider making this configurable (I only care about opus honestly)
-            "--audio-quality",
-            "0",
-            "--embed-metadata",
-            "--embed-thumbnail",
-            "-o",
-            "/tmp/tmp.opus",
-            &*info.url,
-        ])
+    let has_cookies_file = tokio::fs::try_exists(cookies_path).await?;
+    let mut command = tokio::process::Command::new("yt-dlp");
+    command.args([
+        "-x",
+        "--audio-format",
+        "opus", // Consider making this configurable (I only care about opus honestly)
+        "--audio-quality",
+        "0",
+        "--embed-metadata",
+        "--embed-thumbnail",
+        "--sleep-requests",
+        "0.75",
+        "-o",
+        "/tmp/tmp.opus",
+    ]);
+
+    if has_cookies_file {
+        command.args(["--cookies", cookies_path]);
+    }
+
+    let output = command
+        .arg(&*info.url)
         .output()
         .await?;
 
     if !output.status.success() {
-        tracing::error!("Failed to download audio for \"{}\": {}", info.url, String::from_utf8_lossy(&output.stderr));
+        tracing::error!(
+            "Failed to download audio for \"{}\": {}",
+            info.url,
+            String::from_utf8_lossy(&output.stderr)
+        );
         return Err(ApiError::InvalidWSMessage);
     }
 

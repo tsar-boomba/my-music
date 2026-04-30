@@ -45,6 +45,9 @@ pub struct Config {
 
     #[cfg_attr(debug_assertions, serde(default = "default_jwt_secret"))]
     pub jwt_secret: Arc<str>,
+
+    #[serde(default = "default_yt_dlp_cookies_path")]
+    pub yt_dlp_cookies_path: Arc<str>,
 }
 
 impl Config {
@@ -130,4 +133,8 @@ fn default_storage_backend() -> Arc<StorageBackendConfig> {
     } else {
         panic!("Must set INIT_PASSWORD env variable for production.")
     }
+}
+
+fn default_yt_dlp_cookies_path() -> Arc<str> {
+    Arc::from("cookies.txt")
 }
