@@ -17,6 +17,16 @@ export type FinalMetadata = {
 	artists: string[];
 };
 
+type YtInitSongInfo = {
+	url: string;
+};
+
+type UploadedInitSongInfo = {
+	name: string;
+	size: number;
+	type: string;
+};
+
 type AddSongRes = {
 	createdAlbum: boolean | null;
 	addedAlbum: boolean | null;
@@ -24,8 +34,30 @@ type AddSongRes = {
 	addedArtists: boolean | null;
 };
 
+const isStringArray = (arr: any[]): arr is string[] => {
+	return typeof arr[0] === 'string';
+}
+
+const cleanYouTubeUrl = (urlString: string): string => {
+	try {
+		const url = new URL(urlString);
+		const videoId = url.searchParams.get('v');
+
+		url.search = ''; // Clear all query parameters
+
+		if (videoId) {
+			url.searchParams.set('v', videoId); // Re-add only the 'v' parameter
+		}
+
+		return url.toString();
+	} catch (error) {
+		console.error('yt url parse error:', error);
+		return '';
+	}
+}
+
 export const handleUpload = async (
-	files: FileWithPath[],
+	files: FileWithPath[] | string[],
 	setUploading: Dispatch<SetStateAction<number>>,
 	setMetadata: Dispatch<SetStateAction<ParsedMetadata | null>>,
 	setError: Dispatch<SetStateAction<string>>,
@@ -34,19 +66,35 @@ export const handleUpload = async (
 		promise: Promise<FinalMetadata>;
 	}>,
 ): Promise<boolean> => {
+	if (files.length === 0) return false;
+
 	// Open WS
 	const ws = new WebsocketAsPromised(`${scheme}${HOST}/api/add-songs`, {});
 	await ws.open();
 
-	// Tell the server some info about the songs we'll upload
-	ws.send(
-		JSON.stringify(files.map(({ name, size, type }) => ({ name, size, type }))),
-	);
+	if (isStringArray(files)) {
+		// Send the URL for yt-dlp to get
+		const infos = files.map((url) => ({ yt: { url: cleanYouTubeUrl(url) } satisfies YtInitSongInfo })).filter((info) => info.yt.url);
 
+		if (infos.length === 0) return false; // invalid url
+
+		ws.send(
+			JSON.stringify(infos)
+		);
+	} else {
+		// Tell the server some info about the songs we'll upload
+		ws.send(
+			JSON.stringify(files.map(({ name, size, type }) => ({ uploaded: { name, size, type } satisfies UploadedInitSongInfo }))),
+		);
+
+
+	}
 	// Upload each song
 	for (let i = 0; i < files.length; i++) {
 		setUploading(i);
-		ws.send(await files[i].arrayBuffer());
+		if (!isStringArray(files)) {
+			ws.send(await files[i].arrayBuffer());
+		}
 		const meta: ParsedMetadata | { error: string } = JSON.parse(
 			await waitForResponse(ws),
 		);
@@ -84,6 +132,7 @@ export const handleUpload = async (
 		}
 	}
 
+
 	await ws.close();
 	return true;
 };
@@ -97,6 +146,9 @@ const waitForResponse = (ws: WebsocketAsPromised): Promise<any> =>
 			ws.onMessage.addOnceListener((message) => resolve(message)),
 		),
 	]).then((messageOrCloseEvent) => {
+		ws.onClose.removeAllListeners();
+		ws.onMessage.removeAllListeners();
+
 		if (typeof messageOrCloseEvent === 'object') {
 			// Closed D:
 			return JSON.stringify({ error: 'WS closed unexpectedly' });

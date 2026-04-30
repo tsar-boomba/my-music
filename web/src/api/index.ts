@@ -1,4 +1,4 @@
-export const HOST = import.meta.env.DEV ? 'localhost:8013' : location.host;
+export const HOST = location.host;
 export const BASE_URL = import.meta.env.DEV ? `http://${HOST}` : ''; // TODO: get base path from cookie?
 
 export const apiUrl = (path: string) => `${BASE_URL}/api${path}`;

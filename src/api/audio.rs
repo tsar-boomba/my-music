@@ -1,6 +1,6 @@
 use std::{io::Cursor, sync::Arc};
 
-use axum::{body::Bytes, extract, Json};
+use axum::{Json, body::Bytes, extract};
 use axum_extra::extract::CookieJar;
 use serde::Deserialize;
 use symphonia::core::{
@@ -11,13 +11,13 @@ use symphonia::core::{
 };
 
 use crate::{
-    db::{Album, Song, Source, StorageBackend},
     ApiError,
+    db::{Album, Song, Source, StorageBackend},
 };
 
 use super::{
-    auth::{authenticate, AUTH_COOKIE},
     State,
+    auth::{AUTH_COOKIE, authenticate},
 };
 
 pub const ALLOWED_COVER_IMAGE_MIME_TYPES: [&str; 3] = ["image/jpeg", "image/jpg", "image/png"];
@@ -38,12 +38,45 @@ pub struct AlbumCover {
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct InitSongInfo {
+pub enum InitSongInfo {
+    Yt(YtInitSongInfo),
+    Uploaded(UploadedInitSongInfo),
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct YtInitSongInfo {
+    pub url: Arc<str>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UploadedInitSongInfo {
     pub name: Arc<str>,
     #[allow(unused)]
     pub size: usize,
     #[serde(rename = "type")]
     pub mime_type: Arc<str>,
+}
+
+impl InitSongInfo {
+    pub fn name(&self) -> Option<&str> {
+        match self {
+            InitSongInfo::Yt(_) => None,
+            InitSongInfo::Uploaded(uploaded_init_song_info) => {
+                Some(&*uploaded_init_song_info.name)
+            }
+        }
+    }
+
+    pub fn mime_type(&self) -> Option<&str> {
+        match self {
+            InitSongInfo::Yt(_) => None,
+            InitSongInfo::Uploaded(uploaded_init_song_info) => {
+                Some(&*uploaded_init_song_info.mime_type)
+            }
+        }
+    }
 }
 
 /// Returns the albums that had their cover populated
@@ -85,11 +118,11 @@ pub async fn try_populate_album_covers(
         let Ok(meta) = tokio::task::spawn_blocking(move || {
             get_metadata(
                 song.to_bytes(),
-                &InitSongInfo {
+                &InitSongInfo::Uploaded(UploadedInitSongInfo {
                     name: Arc::from(""),
                     size: 0,
                     mime_type: Arc::from(source.mime_type.as_str()),
-                },
+                }),
             )
         })
         .await
@@ -135,7 +168,9 @@ pub async fn try_populate_album_covers(
 pub fn get_metadata(song: Bytes, info: &InitSongInfo) -> Result<ParsedMetadata, ApiError> {
     let src = MediaSourceStream::new(Box::new(Cursor::new(song)), Default::default());
     let mut hint = Hint::new();
-    hint.mime_type(&info.mime_type);
+    if let Some(mime_type) = info.mime_type() {
+        hint.mime_type(mime_type);
+    }
 
     // Use the default options for metadata and format readers.
     let meta_opts: MetadataOptions = Default::default();
@@ -145,7 +180,7 @@ pub fn get_metadata(song: Bytes, info: &InitSongInfo) -> Result<ParsedMetadata, 
     let mut probed = symphonia::default::get_probe().format(&hint, src, &fmt_opts, &meta_opts)?;
 
     let mut meta = ParsedMetadata {
-        title: Some(info.name.clone()),
+        title: info.name().map(Arc::from),
         album: None,
         artists: vec![],
         album_cover: None,

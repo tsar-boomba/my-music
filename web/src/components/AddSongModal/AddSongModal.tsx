@@ -28,6 +28,7 @@ const ACCEPTED_MIME_TYPES = ['audio/*'];
 export const AddSongModal = () => {
 	const { user } = useAuth({ admin: true });
 	const [files, setFiles] = useState<FileWithPath[]>([]);
+	const [ytUrl, setYtUrl] = useState<string>('');
 	const [metadata, setMetadata] = useState<ParsedMetadata | null>(null);
 	const [uploading, setUploading] = useState(-1);
 	const [active, setActive] = useState(0);
@@ -54,10 +55,10 @@ export const AddSongModal = () => {
 	}
 
 	return (
-		<Stepper active={active} onStepClick={() => {}}>
+		<Stepper active={active} onStepClick={() => { }}>
 			<Stepper.Step label='Upload Files'>
 				<Stack align='center'>
-					<Dropzone loading={uploading !== -1} setFiles={setFiles} />
+					<Dropzone disabled={!!ytUrl} loading={uploading !== -1} setFiles={setFiles} />
 					{!!files.length && (
 						<List>
 							{files.map(({ name }, i) => (
@@ -65,20 +66,29 @@ export const AddSongModal = () => {
 							))}
 						</List>
 					)}
+					<Text>OR</Text>
+					<TextInput w='100%' label='YouTube URL' disabled={files.length > 0} value={ytUrl} onChange={(e) => setYtUrl(e.target.value)} />
 					{error && <Text c='red'>{error}</Text>}
 					<Button
-						disabled={!files.length}
+						disabled={!files.length && !ytUrl}
 						loading={uploading !== -1}
 						onClick={() => {
 							nextStep();
 							handleUpload(
-								files,
+								ytUrl ? [ytUrl] : files,
 								setUploading,
 								setMetadata,
 								setError,
 								finalMetaRef,
 							)
-								.then(() => {
+								.then((done) => {
+									if (!done) {
+										setUploading(-1);
+										setMetadata(null);
+										prevStep();
+										return;
+									}
+
 									console.log('upload done');
 									preload('/songs', apiFetcher);
 									closeAllModals();

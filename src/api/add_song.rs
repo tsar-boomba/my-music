@@ -9,15 +9,15 @@ use axum_extra::extract::CookieJar;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    api::audio::{get_metadata, InitSongInfo},
-    db::{self, Album, Artist, Song, StorageBackend, User},
     ApiError,
+    api::audio::{InitSongInfo, YtInitSongInfo, get_metadata},
+    db::{self, Album, Artist, Song, StorageBackend, User},
 };
 
 use super::{
+    State,
     audio::AlbumCover,
     auth::{self, AUTH_COOKIE},
-    State,
 };
 
 pub async fn handler(
@@ -46,7 +46,14 @@ pub async fn handler(
         }))
 }
 
-const ALLOWED_MIME_TYPES: [&str; 6] = ["audio/flac", "audio/mp3", "audio/mpeg", "audio/mp4", "audio/ogg", "audio/x-m4a"];
+const ALLOWED_MIME_TYPES: [&str; 6] = [
+    "audio/flac",
+    "audio/mp3",
+    "audio/mpeg",
+    "audio/mp4",
+    "audio/ogg",
+    "audio/x-m4a",
+];
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -99,18 +106,25 @@ async fn handle_ws(mut ws: WebSocket, state: State, _user: User) -> Result<(), A
     tracing::debug!("Uploading: {info:#?}");
 
     for info in &info {
-        if !ALLOWED_MIME_TYPES.contains(&&*info.mime_type) {
-            return close_with_error(ws, format!("Invalid mime type: {}", info.mime_type)).await;
+        if let Some(mime_type) = info.mime_type()
+            && !ALLOWED_MIME_TYPES.contains(&mime_type)
+        {
+            return close_with_error(ws, format!("Invalid mime type: {}", mime_type)).await;
         }
     }
 
     for song in info {
-        // Client sends song data up
-        let song_data = ws
-            .recv()
-            .await
-            .ok_or(ApiError::InvalidWSMessage)??
-            .into_data();
+        // Client sends song data up or we get it from yt-dlp
+        let (song_data, mime_type) = match &*song {
+            InitSongInfo::Yt(yt_init_song_info) => yt_dlp_song(&yt_init_song_info).await?,
+            InitSongInfo::Uploaded(uploaded_init_song_info) => (
+                ws.recv()
+                    .await
+                    .ok_or(ApiError::InvalidWSMessage)??
+                    .into_data(),
+                uploaded_init_song_info.mime_type.clone(),
+            ),
+        };
 
         // We parse metadata from song and send back to client
         let parsed_meta = tokio::task::spawn_blocking({
@@ -150,7 +164,7 @@ async fn handle_ws(mut ws: WebSocket, state: State, _user: User) -> Result<(), A
             let res = match add_song(
                 state.clone(),
                 song_data.clone(),
-                song.mime_type.clone(),
+                mime_type.clone(),
                 final_meta,
                 parsed_meta.album_cover.clone(),
             )
@@ -302,4 +316,34 @@ async fn close_with_error(mut ws: WebSocket, error: String) -> Result<(), ApiErr
 
 fn default_storage_backend_name() -> Arc<str> {
     Arc::from("init")
+}
+
+/// Uses yt-dlp to download the song and returns its raw bytes and (guessed) mime type
+async fn yt_dlp_song(info: &YtInitSongInfo) -> Result<(Bytes, Arc<str>), ApiError> {
+    tracing::debug!("using yt-dlp for {info:?}");
+    tokio::fs::remove_file("/tmp/tmp.opus").await.ok();
+    let output = tokio::process::Command::new("yt-dlp")
+        .args([
+            "-x",
+            "--audio-format",
+            "opus", // Consider making this configurable (I only care about opus honestly)
+            "--audio-quality",
+            "0",
+            "--embed-metadata",
+            "--embed-thumbnail",
+            "-o",
+            "/tmp/tmp.opus",
+            &*info.url,
+        ])
+        .output()
+        .await?;
+
+    if !output.status.success() {
+        tracing::error!("Failed to download audio for \"{}\": {}", info.url, String::from_utf8_lossy(&output.stderr));
+        return Err(ApiError::InvalidWSMessage);
+    }
+
+    let data = tokio::fs::read("/tmp/tmp.opus").await?;
+
+    Ok((Bytes::from(data), Arc::from("audio/ogg")))
 }

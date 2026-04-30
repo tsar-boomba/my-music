@@ -1,4 +1,4 @@
-FROM --platform=$BUILDPLATFORM node:23-bullseye-slim AS web-build
+FROM --platform=$BUILDPLATFORM node:23-bookworm-slim AS web-build
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 RUN corepack enable
@@ -7,7 +7,7 @@ WORKDIR /web
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
 RUN pnpm run build
 
-FROM --platform=$BUILDPLATFORM debian:bullseye-slim AS chef
+FROM --platform=$BUILDPLATFORM debian:bookworm-slim AS chef
 WORKDIR /app
 
 # Update default packages
@@ -48,8 +48,24 @@ COPY Cargo.toml Cargo.toml
 COPY Cargo.lock Cargo.lock
 RUN cargo build --release
 
-FROM --platform=$BUILDPLATFORM debian:bullseye-slim AS runtime
+FROM --platform=$BUILDPLATFORM debian:bookworm-slim AS runtime
 WORKDIR /
+
+# Update default packages
+RUN apt-get update
+
+# Get Ubuntu packages
+RUN apt-get install -y \
+    ffmpeg \
+    curl \
+    python3
+
+# Update new packages
+RUN apt-get update
+
+RUN curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /bin/yt-dlp \
+    && chmod a+rx /bin/yt-dlp
+
 COPY --from=web-build /web/dist /my-music-web
 COPY --from=builder /app/target/release/my-music /my-music
 ENTRYPOINT ["/my-music"]
