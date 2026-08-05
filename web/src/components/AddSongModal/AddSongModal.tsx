@@ -19,8 +19,7 @@ import {
 import { useAuth } from '../../utils/useAuth';
 import { Dispatch, SetStateAction, useRef, useState } from 'react';
 import { FinalMetadata, handleUpload, ParsedMetadata } from './uploadMusic';
-import { preload } from 'swr';
-import { apiFetcher } from '../../api';
+import { mutate } from 'swr';
 import { closeAllModals } from '@mantine/modals';
 
 const ACCEPTED_MIME_TYPES = ['audio/*'];
@@ -90,7 +89,7 @@ export const AddSongModal = () => {
 									}
 
 									console.log('upload done');
-									preload('/songs', apiFetcher);
+									mutate('/songs');
 									closeAllModals();
 									nextStep();
 								})

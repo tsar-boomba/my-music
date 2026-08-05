@@ -52,7 +52,6 @@ pub struct Config {
 
 impl Config {
     pub fn from_json(json: &str) -> color_eyre::Result<Self> {
-        println!("raw config: {json:?}");
         Ok(serde_json::from_str(json)?)
     }
 }

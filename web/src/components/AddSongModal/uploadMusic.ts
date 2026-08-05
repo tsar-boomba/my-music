@@ -40,21 +40,21 @@ const isStringArray = (arr: any[]): arr is string[] => {
 
 const cleanYouTubeUrl = (urlString: string): string => {
 	try {
-		const url = new URL(urlString);
-		const videoId = url.searchParams.get('v');
+		const normalized = /^https?:\/\//i.test(urlString) ? urlString : `https://${urlString}`;
+		const url = new URL(normalized);
 
-		url.search = ''; // Clear all query parameters
-
-		if (videoId) {
-			url.searchParams.set('v', videoId); // Re-add only the 'v' parameter
+		let videoId = url.searchParams.get('v');
+		if (!videoId && url.hostname.endsWith('youtu.be')) {
+			videoId = url.pathname.slice(1); // youtu.be/<id>
 		}
+		if (!videoId) return '';
 
-		return url.toString();
+		return `https://www.youtube.com/watch?v=${videoId}`;
 	} catch (error) {
 		console.error('yt url parse error:', error);
 		return '';
 	}
-}
+};
 
 export const handleUpload = async (
 	files: FileWithPath[] | string[],
@@ -68,73 +68,75 @@ export const handleUpload = async (
 ): Promise<boolean> => {
 	if (files.length === 0) return false;
 
-	// Open WS
+	// Build the payload BEFORE opening the socket.
+	let initPayload: string;
+	if (isStringArray(files)) {
+		const infos = files
+			.map((url) => ({ yt: { url: cleanYouTubeUrl(url) } satisfies YtInitSongInfo }))
+			.filter((info) => info.yt.url);
+
+		if (infos.length === 0) {
+			setError('No valid YouTube URLs');
+			return false; // nothing opened yet, so nothing to clean up
+		}
+		initPayload = JSON.stringify(infos);
+	} else {
+		initPayload = JSON.stringify(
+			files.map(({ name, size, type }) => ({ uploaded: { name, size, type } satisfies UploadedInitSongInfo })),
+		);
+	}
+
+	// Upload each song
 	const ws = new WebsocketAsPromised(`${scheme}${HOST}/api/add-songs`, {});
 	await ws.open();
 
-	if (isStringArray(files)) {
-		// Send the URL for yt-dlp to get
-		const infos = files.map((url) => ({ yt: { url: cleanYouTubeUrl(url) } satisfies YtInitSongInfo })).filter((info) => info.yt.url);
-
-		if (infos.length === 0) return false; // invalid url
-
-		ws.send(
-			JSON.stringify(infos)
-		);
-	} else {
-		// Tell the server some info about the songs we'll upload
-		ws.send(
-			JSON.stringify(files.map(({ name, size, type }) => ({ uploaded: { name, size, type } satisfies UploadedInitSongInfo }))),
-		);
-
-
-	}
-	// Upload each song
-	for (let i = 0; i < files.length; i++) {
-		setUploading(i);
-		if (!isStringArray(files)) {
-			ws.send(await files[i].arrayBuffer());
-		}
-		const meta: ParsedMetadata | { error: string } = JSON.parse(
-			await waitForResponse(ws),
-		);
-		if ('error' in meta) {
-			setError(meta.error);
-			throw meta.error;
-		}
-
-		console.log(meta);
-
-		setMetadata(meta);
-		while (true) {
-			finalMetaRef.current.promise = new Promise((resolve) => {
-				finalMetaRef.current.resolve = resolve;
-			});
-			const finalMeta = await finalMetaRef.current.promise;
-			console.log('sent final meta', finalMeta);
-			ws.send(JSON.stringify(finalMeta));
-
-			const finalRes: AddSongRes | { error: string } = JSON.parse(
+	try {
+		ws.send(initPayload);
+		for (let i = 0; i < files.length; i++) {
+			setUploading(i);
+			if (!isStringArray(files)) {
+				ws.send(await files[i].arrayBuffer());
+			}
+			const meta: ParsedMetadata | { error: string } = JSON.parse(
 				await waitForResponse(ws),
 			);
-
-			// Something wrong with out final meta
-			if ('error' in finalRes) {
-				setError(finalRes.error);
-				setMetadata(meta);
-				continue;
+			if ('error' in meta) {
+				setError(meta.error);
+				throw meta.error;
 			}
 
-			// TODO: add notifications when there's some error here
-			console.log(finalRes);
+			console.log(meta);
 
-			break;
+			setMetadata(meta);
+			while (true) {
+				finalMetaRef.current.promise = new Promise((resolve) => {
+					finalMetaRef.current.resolve = resolve;
+				});
+				const finalMeta = await finalMetaRef.current.promise;
+				console.log('sent final meta', finalMeta);
+				ws.send(JSON.stringify(finalMeta));
+
+				const finalRes: AddSongRes | { error: string } = JSON.parse(
+					await waitForResponse(ws),
+				);
+
+				// Something wrong with out final meta
+				if ('error' in finalRes) {
+					setError(finalRes.error);
+					setMetadata(meta);
+					continue;
+				}
+
+				// TODO: add notifications when there's some error here
+				console.log(finalRes);
+
+				break;
+			}
 		}
+	} finally {
+		await ws.close();
+		return true;
 	}
-
-
-	await ws.close();
-	return true;
 };
 
 const waitForResponse = (ws: WebsocketAsPromised): Promise<any> =>
