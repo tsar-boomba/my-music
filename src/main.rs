@@ -23,7 +23,7 @@ mod error;
 mod static_files;
 
 fn main() -> color_eyre::Result<()> {
-    let config = Config::from_json(&std::fs::read("./my-music-config.json")?)?;
+    let config = Config::from_json(&std::fs::read_to_string("./my-music-config.json")?)?;
 
     tracing_subscriber::fmt()
         .with_ansi(false)

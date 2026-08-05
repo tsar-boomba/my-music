@@ -51,8 +51,9 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn from_json(json: &[u8]) -> color_eyre::Result<Self> {
-        Ok(serde_json::from_slice(json)?)
+    pub fn from_json(json: &str) -> color_eyre::Result<Self> {
+        tracing::debug!("raw config: {json:?}");
+        Ok(serde_json::from_str(json)?)
     }
 }
 
