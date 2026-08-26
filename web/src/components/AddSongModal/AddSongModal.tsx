@@ -90,6 +90,9 @@ export const AddSongModal = () => {
 
 									console.log('upload done');
 									mutate('/songs');
+									mutate('/sources');
+									mutate('/songs/sources');
+									mutate('/albums/sources');
 									closeAllModals();
 									nextStep();
 								})
