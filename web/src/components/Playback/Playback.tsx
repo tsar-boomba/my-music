@@ -224,6 +224,12 @@ export const Playback = ({
 
 	// Handle events from media session
 	useEffect(() => {
+		if ('audioSession' in navigator) {
+			// In safari, we can explicitly tell the system what kind of audio we play
+			// See MDN for more: https://developer.mozilla.org/docs/Web/API/Audio_Session_API
+			(navigator.audioSession as { type: string }).type = 'playback';
+		}
+
 		if (!MEDIA_SESSION) return;
 
 		const handler: MediaSessionActionHandler = ({
