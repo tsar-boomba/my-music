@@ -16,18 +16,14 @@ RUN curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o 
     && chmod a+rx /bin/yt-dlp
 
 # 3. Rust Chef Stage
-FROM --platform=$BUILDPLATFORM debian:bookworm-slim AS chef
+FROM lukemathwalker/cargo-chef:0.1.78-rust-1-slim-bookworm AS chef
 WORKDIR /app
-RUN apt-get update && apt-get install -y --no-install-recommends build-essential curl ca-certificates
-RUN curl https://sh.rustup.rs -sSf | bash -s -- -y
-ENV PATH="/root/.cargo/bin:${PATH}"
-RUN cargo install --locked --version 0.1.77 cargo-chef
-RUN cargo install --locked --version 0.8.3 sqlx-cli --no-default-features --features rustls,sqlite
+RUN apt-get update && apt-get install -y --no-install-recommends sqlite3 && rm -rf /var/lib/apt/lists/*
+# DB only exists so sqlx's query! macros can check queries at compile time
 ENV DATABASE_URL=sqlite:///my-music-data/db
 RUN mkdir -p /my-music-data
-RUN sqlx database create
 COPY migrations migrations
-RUN sqlx migrate run
+RUN for f in $(printf "%s\n" migrations/*.sql | sort -V); do sqlite3 /my-music-data/db < "$f"; done
 
 # 4. Rust Planner Stage
 FROM chef AS planner
@@ -37,15 +33,17 @@ RUN cargo chef prepare --recipe-path recipe.json
 # 5. Rust Builder Stage
 FROM chef AS builder 
 COPY --from=planner /app/recipe.json recipe.json
-RUN cargo chef cook --release --recipe-path recipe.json
+# Build dependencies - this is the caching Docker layer!
+RUN cargo chef cook --release -p my-music --recipe-path recipe.json
+# Build application
 COPY migrations migrations
 COPY src src
 COPY Cargo.toml Cargo.toml
 COPY Cargo.lock Cargo.lock
-RUN cargo build --release
+RUN cargo build --release -p my-music
 
 # 6. Final Runtime Stage
-FROM --platform=$BUILDPLATFORM debian:bookworm-slim AS runtime
+FROM debian:bookworm-slim AS runtime
 WORKDIR /
 
 # Install only required dependencies, avoid recommends, and clean cache
